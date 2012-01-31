@@ -1,0 +1,58 @@
+190c190
+< 	printf( _("Initializing download: %s\n"), s );
+---
+> //	printf( _("Initializing download: %s\n"), s );
+416a417
+> /*
+420a422
+> */
+487c489,490
+< 	int i,j=0;
+---
+> 	//int i,j=0;
+> 	int i;
+490,491c493,502
+< 	printf("\r[%3ld%%] [", min(100,(long)(done*100./total+.5) ) );
+< 		
+---
+> 	//printf("[%lld/%lld] [%3ld%%] [", done, total,  min(100,(long)(done*100./total+.5) ) );
+> 	printf("[%lld/%lld] [", done, total);
+> 	for(i=0;i<axel->conf->num_connections;i++)
+> 	{
+> 		printf("%lld", axel->conn[i].currentbyte);
+> 		if (i < axel->conf->num_connections-1)
+> 			putchar(',');
+> 	}
+> 	printf("]");
+>   /*
+510a522,524
+>   */
+> 
+>   printf( " [%d]", axel->bytes_per_second );
+511a526
+>   /*
+513c528
+< 		printf( "] [%6.1fMB/s]", (double) axel->bytes_per_second / (1024*1024) );
+---
+> 		printf( "[%6.1fMB/s]", (double) axel->bytes_per_second / (1024*1024) );
+515c530
+< 		printf( "] [%6.1fKB/s]", (double) axel->bytes_per_second / 1024 );
+---
+> 		printf( "[%6.1fKB/s]", (double) axel->bytes_per_second / 1024 );
+517c532,533
+< 		printf( "] [%6.1fB/s]", (double) axel->bytes_per_second );
+---
+> 		printf( "[%6.1fB/s]", (double) axel->bytes_per_second );
+>   */
+520a537,538
+>     printf(" [%lf]", axel->finish_time - now);
+>     /*
+531a550
+>     */
+532a552,557
+> 	struct timeval tim;
+> 	gettimeofday(&tim, NULL);
+> 	double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
+> 
+> 	printf(" [%f]", t1);
+>   putchar('\n');

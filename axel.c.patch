@@ -1,0 +1,22 @@
+125,126c125,126
+< 		if( axel->conf->verbose > 0 )
+< 			axel_message( axel, _("File size: %lld bytes"), axel->size );
+---
+> //		if( axel->conf->verbose > 0 )
+> //			axel_message( axel, _("File size: %lld bytes"), axel->size );
+143c143
+< 		axel_message( axel, _("Opening output file %s"), axel->filename );
+---
+> //		axel_message( axel, _("Opening output file %s"), axel->filename );
+171c171
+< 		axel_message( axel, _("State file found: %lld bytes downloaded, %lld to go."),
+---
+> /*		axel_message( axel, _("State file found: %lld bytes downloaded, %lld to go."),
+172a173
+> */
+234,235c235,236
+< 	if( axel->conf->verbose > 0 )
+< 		axel_message( axel, _("Starting download") );
+---
+> //	if( axel->conf->verbose > 0 )
+> //		axel_message( axel, _("Starting download") );

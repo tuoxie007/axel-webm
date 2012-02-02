@@ -10,6 +10,6 @@ diff axel/axel.c ../axel.c > ../axel.c.patch
 patch axel/text.c ../text.c.patch
 patch axel/axel.c ../axel.c.patch
 cd axel/
-./configure
+./configure --debug=0 --i18n=0
 make
 cp axel ../../

@@ -77,44 +77,64 @@ class API(object):
         if pid: # old process
             return # as 200 OK
         else: # sub process
-            axel_args = ("'%s'" % url, "--output='%s'" % os.path.join(INCOMMING, output), "-alternate", "--max-speed=%s" % maxspeed)
-            for header in headers.splitlines():
-                axel_args.append("--header='%s'" % header)
+          force_download = True
 
-            axel_process = subprocess.Popen(axel_args, shell=False, executable='./axel', stdout=subprocess.PIPE)
+          output_file = os.path.join(INCOMMING, output)
+          if os.path.exists(output_file) and not os.path.exists(output_file + '.st'):
+            if force_download:
+              os.remove(output_file)
+            else:
+              print 'file completed already, skip download'
+              exit()
 
-            while 1:
-                tasks = db.select_tasks(id=tid)
-                if tasks:
-                    task = tasks[0]
-                    state = task["state"]
-                    if state == STATE_DOWNLOADING:
-                        axel_process.stdout.settimeout(0.1)
-                        line = axel_process.stdout.readline().strip()
-                        try:
-                            if line.startswith(":"):
-                                done, total, thdone, speed, left, update_time = line[1:].split("|")
-                                db.update_tasks(tid, done=int(done), total=int(total), thdone=thdone, speed=int(speed), left=int(left))
-                                if done == total:
-                                    db.update_tasks(tid, state=STATE_COMPLETED)
-                                    break
-                                    
-                                time.sleep(1)
-                                continue
-                            elif line.startswith("HTTP/1."):
-                                db.update_tasks(tid, state=STATE_ERROR, errmsg=line)
-                                break
-                        except:
-                            continue
-                        axel_process.poll()
-                        returncode = process.returncode
-                        if returncode is not None:
-                            # axel completed
-                            if returncode:
-                                db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
-                            break
-                break
-            axel_process.terminate()
+          args = ["../axel", "-a", "-n %s" % thsize, "-s %s" % maxspeed, url, "--output=%s" % output]
+          for header in headers.splitlines():
+              args.append("--header='%s'" % header)
+          axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
+
+          last_update_time = 0
+          while 1:
+              tasks = db.select_tasks(id=tid)
+              if tasks:
+                  task = tasks[0]
+                  state = task["state"]
+                  if state == STATE_DOWNLOADING:
+                      axel_process.stdout.settimeout(1)
+                      try:
+                          line = axel_process.stdout.readline().strip()
+                          if line.startswith(":"):
+# compute time interval
+                              done, total, thdone, speed, left, update_time = line[1:].split("|")
+                              db.update_tasks(tid, done=int(done), total=int(total), thdone=thdone, speed=int(speed), left=int(left))
+                              this_update_time = time.time()
+                              if this_update_time - last_update_time < 1:
+                                  last_update_time = this_update_time
+                                  continue
+                              else:
+                                  last_update_time = this_update_time
+                              if done == total:
+                                  db.update_tasks(tid, state=STATE_COMPLETED)
+                                  break
+                              continue
+                          elif line.startswith("HTTP/1."):
+                              db.update_tasks(tid, state=STATE_ERROR, errmsg=line)
+                              break
+                      except IOError: # TODO timeout
+                          speed = task['speed'] / 2
+                          left = task['left'] * 2 + 1
+                          db.update_tasks(tid, speed=int(speed), left=int(left))
+                          continue
+                      except:
+                          continue
+                      axel_process.poll()
+                      returncode = process.returncode
+                      if returncode is not None:
+                          # axel completed
+                          if returncode:
+                              db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
+                          break
+                  break
+              axel_process.terminate()
     def tasks(self, options):
         return db.select_tasks(**options)
 

@@ -16,7 +16,6 @@ patch $axel/conf.c ../conf.c.patch
 patch $axel/conf.h ../conf.h.patch
 cd $axel/
 export CFLAGS='-w'
-export LFLAGS='-l curl'
-./configure --i18n=0
+./configure --debug=0 --i18n=0
 make
 cp axel ../../

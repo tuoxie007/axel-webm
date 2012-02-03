@@ -1,0 +1,81 @@
+30c30
+< static char *time_human( int value );
+---
+> //static char *time_human( int value );
+45a46
+> 	{ "tid",		1,	NULL,	't' },
+111a113,119
+> 		case 't':
+> 			if( !sscanf( optarg, "%i", &conf->tid ) )
+> 			{
+> 				print_help();
+> 				return( 1 );
+> 			}
+> 			break;
+190c198
+< 	printf( _("Initializing download: %s\n"), s );
+---
+> //	printf( _("Initializing download: %s\n"), s );
+416a425
+> /*
+420a430
+> */
+450a461
+> /*
+463a475
+> */
+487c499,500
+< 	int i,j=0;
+---
+> 	//int i,j=0;
+> 	int i;
+490,491c503,513
+< 	printf("\r[%3ld%%] [", min(100,(long)(done*100./total+.5) ) );
+< 		
+---
+> 	//printf("[%lld/%lld] [%3ld%%] [", done, total,  min(100,(long)(done*100./total+.5) ) );
+>   putchar(':');
+> 	printf("%lld|%lld|", done, total);
+> 	for(i=0;i<axel->conf->num_connections;i++)
+> 	{
+> 		printf("%lld", axel->conn[i].currentbyte);
+> 		if (i < axel->conf->num_connections-1)
+> 			putchar(',');
+> 	}
+> 	printf("|");
+>   /*
+510a533,535
+>   */
+> 
+>   printf( "%d|", axel->bytes_per_second );
+511a537
+>   /*
+513c539
+< 		printf( "] [%6.1fMB/s]", (double) axel->bytes_per_second / (1024*1024) );
+---
+> 		printf( "[%6.1fMB/s]", (double) axel->bytes_per_second / (1024*1024) );
+515c541
+< 		printf( "] [%6.1fKB/s]", (double) axel->bytes_per_second / 1024 );
+---
+> 		printf( "[%6.1fKB/s]", (double) axel->bytes_per_second / 1024 );
+517c543,544
+< 		printf( "] [%6.1fB/s]", (double) axel->bytes_per_second );
+---
+> 		printf( "[%6.1fB/s]", (double) axel->bytes_per_second );
+>   */
+520a548,549
+>     printf("%lf|", axel->finish_time - now);
+>     /*
+531a561
+>     */
+532a563,570
+>   else
+>     printf("0|");
+> 	struct timeval tim;
+> 	gettimeofday(&tim, NULL);
+> 	double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
+> 
+> 	printf("%f|", t1);
+>   putchar('\n');
+559a598
+> 		"--tid=x\t\t-s x\tSpecify self tid(bytes per second)\n"

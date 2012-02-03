@@ -31,9 +31,26 @@ static void *setup_thread( void * );
 static void axel_message( axel_t *axel, char *format, ... );
 static void axel_divide( axel_t *axel );
 
-static int read_max_speed_from_http_api( int tid);
+static int read_max_speed_from_http_api( int tid );
 
 static char *buffer = NULL;
+
+static read_max_speed_from_http_api( int tid )
+{
+  char *json;
+  char *tpl = "{\"action\":\"max_speed\", \"pid\":%d}";
+  int tidlen = 0;
+  if (tid < 10) tidlen = 1;
+  else if (tid < 100) tidlen = 2;
+  else if (tid < 1000) tidlen = 3;
+  else tid = 4;
+  json = (char *)malloc(tidlen+strlen(tpl)-1);
+  sprintf(json, tpl, tid);
+  char *c = http_post("localhost", "/api", json);
+  fprintf(stdout, "%s", c);
+  int max_speed = atoi(c);
+  return max_speed;
+}
 
 /* Create a new axel_t structure					*/
 axel_t *axel_new( conf_t *conf, int count, void *url )

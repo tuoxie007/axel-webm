@@ -24,6 +24,7 @@
 */
 
 #include "config.h"
+#include "httpget.h"
 
 #include <time.h>
 #include <ctype.h>

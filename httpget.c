@@ -5,6 +5,8 @@
 #define PORT 80
 #define USERAGENT "HTMLGET 1.0"
 
+#define BUFSIZE 1200
+
 char* http_get(char *host, char *page)
 {
   struct sockaddr_in *remote;
@@ -12,7 +14,7 @@ char* http_get(char *host, char *page)
   int tmpres;
   char *ip;
   char *get;
-  char buf[BUFSIZ+1];
+  char buf[BUFSIZE+1];
     
   sock = create_tcp_socket();
   ip = get_ip(host);
@@ -50,7 +52,7 @@ char* http_get(char *host, char *page)
   memset(buf, 0, sizeof(buf));
   int htmlstart = 0;
   char * htmlcontent;
-  while((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0){
+  while((tmpres = recv(sock, buf, BUFSIZE, 0)) > 0){
     if(htmlstart == 0){
       /* Under certain conditions this will not work.
        * If the \r\n\r\n part is splitted into two messages
@@ -135,7 +137,6 @@ char *build_get_query(char *host, char *page)
   return query;
 }
 
-/*
 int main(int argc, char **argv)
 {
   char *host = "baidu.com";
@@ -144,4 +145,3 @@ int main(int argc, char **argv)
   fprintf(stdout, "%s", c);
   return 0;
 }
-*/

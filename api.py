@@ -77,15 +77,11 @@ class API(object):
         if pid: # old process
             return # as 200 OK
         else: # sub process
-            axel_args = ("./axel", "'%s'" % url, "--output='%s'" % os.path.join(INCOMMING, output), "-alternate", "--max-speed=%s" % maxspeed)
+            axel_args = ("'%s'" % url, "--output='%s'" % os.path.join(INCOMMING, output), "-alternate", "--max-speed=%s" % maxspeed)
             for header in headers.splitlines():
                 axel_args.append("--header='%s'" % header)
-            pipe_file = 'logs/%s.log' % pid
-            if os.path.exists(pipe_file): os.remove(pipe_file)
 
-            axel_process = subprocess.Popen(axel_args, stdout=open(pipe_file, 'wb'))
-
-            axel_output = open(pipe_file, 'rb')
+            axel_process = subprocess.Popen(axel_args, shell=False, executable='./axel', stdout=subprocess.PIPE)
 
             while 1:
                 tasks = db.select_tasks(id=tid)
@@ -93,8 +89,8 @@ class API(object):
                     task = tasks[0]
                     state = task["state"]
                     if state == STATE_DOWNLOADING:
-                        axel_output.settimeout(0.1)
-                        line = axel_output.readline().strip()
+                        axel_process.stdout.settimeout(0.1)
+                        line = axel_process.stdout.readline().strip()
                         try:
                             if line.startswith(":"):
                                 done, total, thdone, speed, left, update_time = line[1:].split("|")
@@ -110,6 +106,13 @@ class API(object):
                                 break
                         except:
                             continue
+                        axel_process.poll()
+                        returncode = process.returncode
+                        if returncode is not None:
+                            # axel completed
+                            if returncode:
+                                db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
+                            break
                 break
             axel_process.terminate()
     def tasks(self, options):

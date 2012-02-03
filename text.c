@@ -27,7 +27,7 @@
 
 static void stop( int signal );
 static char *size_human( long long int value );
-static char *time_human( int value );
+//static char *time_human( int value );
 static void print_commas( long long int bytes_done );
 static void print_alternate_output( axel_t *axel );
 static void print_help();
@@ -43,6 +43,7 @@ static struct option axel_options[] =
 {
 	/* name			has_arg	flag	val */
 	{ "max-speed",		1,	NULL,	's' },
+	{ "tid",		1,	NULL,	't' },
 	{ "num-connections",	1,	NULL,	'n' },
 	{ "output",		1,	NULL,	'o' },
 	{ "search",		2,	NULL,	'S' },
@@ -104,6 +105,13 @@ int main( int argc, char *argv[] )
 			break;
 		case 's':
 			if( !sscanf( optarg, "%i", &conf->max_speed ) )
+			{
+				print_help();
+				return( 1 );
+			}
+			break;
+		case 't':
+			if( !sscanf( optarg, "%i", &conf->tid ) )
 			{
 				print_help();
 				return( 1 );
@@ -450,6 +458,7 @@ char *size_human( long long int value )
 }
 
 /* Convert a number of seconds to a human-readable form			*/
+/*
 char *time_human( int value )
 {
 	if( value == 1 )
@@ -463,6 +472,7 @@ char *time_human( int value )
 	
 	return( string );
 }
+*/
 
 /* Part of the infamous wget-like interface. Just put it in a function
 	because I need it quite often..					*/
@@ -585,6 +595,7 @@ void print_help()
 	printf(	_("Usage: axel [options] url1 [url2] [url...]\n"
 		"\n"
 		"--max-speed=x\t\t-s x\tSpecify maximum speed (bytes per second)\n"
+		"--tid=x\t\t-s x\tSpecify self tid(bytes per second)\n"
 		"--num-connections=x\t-n x\tSpecify maximum number of connections\n"
 		"--output=f\t\t-o f\tSpecify local output file\n"
 		"--search[=x]\t\t-S [x]\tSearch for mirrors and download from x servers\n"

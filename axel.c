@@ -31,6 +31,8 @@ static void *setup_thread( void * );
 static void axel_message( axel_t *axel, char *format, ... );
 static void axel_divide( axel_t *axel );
 
+static int read_max_speed_from_http_api( int tid);
+
 static char *buffer = NULL;
 
 /* Create a new axel_t structure					*/
@@ -47,15 +49,19 @@ axel_t *axel_new( conf_t *conf, int count, void *url )
 	*axel->conf = *conf;
 	axel->conn = malloc( sizeof( conn_t ) * axel->conf->num_connections );
 	memset( axel->conn, 0, sizeof( conn_t ) * axel->conf->num_connections );
-	if( axel->conf->max_speed > 0 )
+
+  // Read max_speed from python http api
+  int max_speed = read_max_speed_from_http_api( axel->conf->tid );
+
+	if( max_speed > 0 )
 	{
-		if( (float) axel->conf->max_speed / axel->conf->buffer_size < 0.5 )
+		if( (float) max_speed / axel->conf->buffer_size < 0.5 )
 		{
 			if( axel->conf->verbose >= 2 )
 				axel_message( axel, _("Buffer resized for this speed.") );
-			axel->conf->buffer_size = axel->conf->max_speed;
+			axel->conf->buffer_size = max_speed;
 		}
-		axel->delay_time = (int) ( (float) 1000000 / axel->conf->max_speed * axel->conf->buffer_size * axel->conf->num_connections );
+		axel->delay_time = (int) ( (float) 1000000 / max_speed * axel->conf->buffer_size * axel->conf->num_connections );
 	}
 	if( buffer == NULL )
 		buffer = malloc( max( MAX_STRING, axel->conf->buffer_size ) );
@@ -137,6 +143,7 @@ axel_t *axel_new( conf_t *conf, int count, void *url )
 int axel_open( axel_t *axel )
 {
 	int i, fd;
+  int r;
 	long long int j;
 	
 	if( axel->conf->verbose > 0 )
@@ -157,16 +164,16 @@ int axel_open( axel_t *axel )
 	}
 	else if( ( fd = open( buffer, O_RDONLY ) ) != -1 )
 	{
-		read( fd, &axel->conf->num_connections, sizeof( axel->conf->num_connections ) );
+		r = read( fd, &axel->conf->num_connections, sizeof( axel->conf->num_connections ) );
 		
 		axel->conn = realloc( axel->conn, sizeof( conn_t ) * axel->conf->num_connections );
 		memset( axel->conn + 1, 0, sizeof( conn_t ) * ( axel->conf->num_connections - 1 ) );
 
 		axel_divide( axel );
 		
-		read( fd, &axel->bytes_done, sizeof( axel->bytes_done ) );
+		r = read( fd, &axel->bytes_done, sizeof( axel->bytes_done ) );
 		for( i = 0; i < axel->conf->num_connections; i ++ )
-			read( fd, &axel->conn[i].currentbyte, sizeof( axel->conn[i].currentbyte ) );
+			r = read( fd, &axel->conn[i].currentbyte, sizeof( axel->conn[i].currentbyte ) );
 
 /*		axel_message( axel, _("State file found: %lld bytes downloaded, %lld to go."),
 			axel->bytes_done, axel->size - axel->bytes_done );
@@ -206,7 +213,7 @@ int axel_open( axel_t *axel )
 			j = axel->size;
 			while( j > 0 )
 			{
-				write( axel->outfd, buffer, min( j, axel->conf->buffer_size ) );
+				r = write( axel->outfd, buffer, min( j, axel->conf->buffer_size ) );
 				j -= axel->conf->buffer_size;
 			}
 		}
@@ -430,6 +437,10 @@ conn_check:
 
 	/* Check speed. If too high, delay for some time to slow things
 	   down a bit. I think a 5% deviation should be acceptable.	*/
+
+  // Read max_speed from api
+  int max_speed = read_max_speed_from_http_api( axel->conf->tid );
+
 	if( axel->conf->max_speed > 0 )
 	{
 		if( (float) axel->bytes_per_second / axel->conf->max_speed > 1.05 )
@@ -512,11 +523,11 @@ void save_state( axel_t *axel )
 	{
 		return;		/* Not 100% fatal..			*/
 	}
-	write( fd, &axel->conf->num_connections, sizeof( axel->conf->num_connections ) );
-	write( fd, &axel->bytes_done, sizeof( axel->bytes_done ) );
+	int r = write( fd, &axel->conf->num_connections, sizeof( axel->conf->num_connections ) );
+	r = write( fd, &axel->bytes_done, sizeof( axel->bytes_done ) );
 	for( i = 0; i < axel->conf->num_connections; i ++ )
 	{
-		write( fd, &axel->conn[i].currentbyte, sizeof( axel->conn[i].currentbyte ) );
+		r = write( fd, &axel->conn[i].currentbyte, sizeof( axel->conn[i].currentbyte ) );
 	}
 	close( fd );
 }

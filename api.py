@@ -1,6 +1,5 @@
 import logging as log
-import os, shutil, subprocess, time, urlparse
-from socket import timeout
+import os, shutil, subprocess, time, urlparse, json
 import db
 
 DEFAULT_THREAD_SIZE=5
@@ -47,7 +46,11 @@ class API(object):
                 ids = data["ids"]
                 ret = self.sort(ids)
             elif action == 'maxspeed':
-                return "1000";
+                tid = data["tid"]
+                ret = self.maxspeed(tid);
+            elif action == "config":
+                conf = data["config"]
+                ret = self.config(conf)
             else:
                 raise APIError(APIError.ERROR_REQUEST_DATA_INVALID)
             
@@ -98,6 +101,7 @@ class API(object):
           for header in headers.splitlines():
               args.append("-H", header)
           args.append(url)
+          print ' '.join(args)
           axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
 
           last_update_time = 0
@@ -108,6 +112,7 @@ class API(object):
                   state = task["state"]
                   if state == STATE_DOWNLOADING:
                       line = axel_process.stdout.readline().strip()
+                      print line
                       try:
                           if line.startswith(":"):
                               done, total, thdone, speed, left, update_time = line[1:].split("|")
@@ -122,10 +127,8 @@ class API(object):
                                   last_update_time = this_update_time
                                   continue
                               else:
+                                  db.update_tasks(tid, speed=speed)
                                   last_update_time = this_update_time
-                              if done == total:
-                                  db.update_tasks(tid, state=STATE_COMPLETED)
-                                  break
                               continue
                           elif line.startswith("HTTP/1."):
                               db.update_tasks(tid, state=STATE_ERROR, errmsg=line)
@@ -160,3 +163,36 @@ class API(object):
         orders = []
         for order in range(len(ids)):
             db.update_tasks(ids[order], **{'order':order}) 
+
+    def maxspeed(self, tid):
+        return 0
+        with open('conf', 'rb') as configfile:
+            content = configfile.read()
+            conf = json.loads(content)
+            if not conf.has_key('total_maxspeed'):
+                return 0
+            total_max = conf['total_maxspeed']
+            if not total_max:
+                return 0
+            tasks = db.select_tasks(state="!=5")
+            total_speed = 0
+            for task in tasks:
+                if task['id'] == tid:
+                    continue
+                speed = task['speed']
+                if speed:
+                    total_speed += task['speed']
+            if total_speed > total_max:
+                return 1
+            else:
+                return total_max - total_speed
+    
+    def config(self, conf):
+        try:
+            dict_conf = json.loads(conf)
+            conf = json.dumps()
+        except:
+            raise APIError(ERROR_REQUEST_DATA_INVALID)
+        with open('conf', 'wb') as configfile:
+            configfile.write(conf)
+

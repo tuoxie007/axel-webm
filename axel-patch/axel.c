@@ -38,7 +38,7 @@ static char *buffer = NULL;
 static read_max_speed_from_http_api( int tid )
 {
   char *json;
-  char *tpl = "{\"action\":\"maxspeed\", \"pid\":%d}";
+  char *tpl = "{\"action\":\"maxspeed\", \"tid\":%d}";
   int tidlen = 0;
   if (tid < 10) tidlen = 1;
   else if (tid < 100) tidlen = 2;
@@ -49,6 +49,8 @@ static read_max_speed_from_http_api( int tid )
   char *c = (char *)malloc(10);
   int ret = http_post("localhost", 8080, "/api", json, c);
   int max_speed = atoi(c);
+  free(json);
+  free(c);
   return max_speed;
 }
 

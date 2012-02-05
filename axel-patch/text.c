@@ -27,7 +27,7 @@
 
 static void stop( int signal );
 static char *size_human( long long int value );
-//static char *time_human( int value );
+static char *time_human( int value );
 static void print_commas( long long int bytes_done );
 static void print_alternate_output( axel_t *axel );
 static void print_help();
@@ -43,7 +43,6 @@ static struct option axel_options[] =
 {
 	/* name			has_arg	flag	val */
 	{ "max-speed",		1,	NULL,	's' },
-	{ "tid",		1,	NULL,	't' },
 	{ "num-connections",	1,	NULL,	'n' },
 	{ "output",		1,	NULL,	'o' },
 	{ "search",		2,	NULL,	'S' },
@@ -105,13 +104,6 @@ int main( int argc, char *argv[] )
 			break;
 		case 's':
 			if( !sscanf( optarg, "%i", &conf->max_speed ) )
-			{
-				print_help();
-				return( 1 );
-			}
-			break;
-		case 't':
-			if( !sscanf( optarg, "%i", &conf->tid ) )
 			{
 				print_help();
 				return( 1 );
@@ -195,7 +187,7 @@ int main( int argc, char *argv[] )
 		}
 	}
 	
-//	printf( _("Initializing download: %s\n"), s );
+	printf( _("Initializing download: %s\n"), s );
 	if( do_search )
 	{
 		search = malloc( sizeof( search_t ) * ( conf->search_amount + 1 ) );
@@ -422,12 +414,10 @@ int main( int argc, char *argv[] )
 	strcpy( string + MAX_STRING / 2,
 		size_human( axel->bytes_done - axel->start_byte ) );
 	
-/*
 	printf( _("\nDownloaded %s in %s. (%.2f KB/s)\n"),
 		string + MAX_STRING / 2,
 		time_human( gettime() - axel->start_time ),
 		(double) axel->bytes_per_second / 1024 );
-*/
 	
 	i = axel->ready ? 0 : 2;
 	
@@ -458,7 +448,6 @@ char *size_human( long long int value )
 }
 
 /* Convert a number of seconds to a human-readable form			*/
-/*
 char *time_human( int value )
 {
 	if( value == 1 )
@@ -472,7 +461,6 @@ char *time_human( int value )
 	
 	return( string );
 }
-*/
 
 /* Part of the infamous wget-like interface. Just put it in a function
 	because I need it quite often..					*/
@@ -496,11 +484,9 @@ static void print_alternate_output(axel_t *axel)
 {
 	long long int done=axel->bytes_done;
 	long long int total=axel->size;
-	//int i,j=0;
 	int i;
 	double now = gettime();
 	
-	//printf("[%lld/%lld] [%3ld%%] [", done, total,  min(100,(long)(done*100./total+.5) ) );
   putchar(':');
 	printf("%lld|%lld|", done, total);
 	for(i=0;i<axel->conf->num_connections;i++)
@@ -509,59 +495,14 @@ static void print_alternate_output(axel_t *axel)
 		if (i < axel->conf->num_connections-1)
 			putchar(',');
 	}
-	printf("|");
-  /*
-	for(i=0;i<axel->conf->num_connections;i++)
-	{
-		for(;j<((double)axel->conn[i].currentbyte/(total+1)*50)-1;j++)
-			putchar('.');
-
-		if(axel->conn[i].currentbyte<axel->conn[i].lastbyte)
-		{
-			if(now <= axel->conn[i].last_transfer + axel->conf->connection_timeout/2 )
-				putchar(i+'0');
-			else
-				putchar('#');
-		} else 
-			putchar('.');
-
-		j++;
-		
-		for(;j<((double)axel->conn[i].lastbyte/(total+1)*50);j++)
-			putchar(' ');
-	}
-  */
-
-  printf( "%d|", axel->bytes_per_second );
-	
-  /*
-	if(axel->bytes_per_second > 1048576)
-		printf( "[%6.1fMB/s]", (double) axel->bytes_per_second / (1024*1024) );
-	else if(axel->bytes_per_second > 1024)
-		printf( "[%6.1fKB/s]", (double) axel->bytes_per_second / 1024 );
-	else
-		printf( "[%6.1fB/s]", (double) axel->bytes_per_second );
-  */
-	
+  printf( "|%d|", axel->bytes_per_second );
 	if(done<total)
 	{
     printf("%lf|", axel->finish_time - now);
-    /*
-		int seconds,minutes,hours,days;
-		seconds=axel->finish_time - now;
-		minutes=seconds/60;seconds-=minutes*60;
-		hours=minutes/60;minutes-=hours*60;
-		days=hours/24;hours-=days*24;
-		if(days)
-			printf(" [%2dd%2d]",days,hours);
-		else if(hours)
-			printf(" [%2dh%02d]",hours,minutes);
-		else
-			printf(" [%02d:%02d]",minutes,seconds);
-    */
 	}
   else
     printf("0|");
+
 	struct timeval tim;
 	gettimeofday(&tim, NULL);
 	double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
@@ -595,7 +536,6 @@ void print_help()
 	printf(	_("Usage: axel [options] url1 [url2] [url...]\n"
 		"\n"
 		"--max-speed=x\t\t-s x\tSpecify maximum speed (bytes per second)\n"
-		"--tid=x\t\t-s x\tSpecify self tid(bytes per second)\n"
 		"--num-connections=x\t-n x\tSpecify maximum number of connections\n"
 		"--output=f\t\t-o f\tSpecify local output file\n"
 		"--search[=x]\t\t-S [x]\tSearch for mirrors and download from x servers\n"

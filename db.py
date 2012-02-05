@@ -117,13 +117,16 @@ def update_tasks(dids, **kwargs):
 
     SQL = "update tasks set "
 
+    sets = []
     for key, value in kwargs.items():
-        SQL += " `%s` = %s " % (key, value) if type(value) is int else \
-            " `%s` = '%s' " % (key, value)
+        sets.append(" `%s` = %s " % (key, value) if type(value) is int else \
+            " `%s` = '%s' " % (key, value))
+    SQL += ",".join(sets)
 
     SQL += " where id = %s " % dids if type(dids) is int else \
         " where id in (%s) " % ", ".join([str(did) for did in dids])
 
+    print SQL
     cursor.execute(SQL)
     dbc.commit()
     dbc.close()

@@ -566,7 +566,7 @@ static void print_alternate_output(axel_t *axel)
 	gettimeofday(&tim, NULL);
 	double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
 
-	printf("%f|", t1);
+	printf("%f", t1);
   putchar('\n');
 	
 	fflush( stdout );

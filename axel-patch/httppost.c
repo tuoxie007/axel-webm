@@ -23,7 +23,7 @@ char *get_ip(char *host)
   return ip;
 }
 
-char* http_post(char *host, char *page, char *data)
+int http_post(char *host, int port, char *page, char *data, char *response)
 {
   struct sockaddr_in *remote;
   int sock;
@@ -45,14 +45,14 @@ char* http_post(char *host, char *page, char *data)
   }else if(tmpres == 0) {
     return NULL;
   }
-  remote->sin_port = htons(PORT);
+  remote->sin_port = htons(port);
     
   if(connect(sock, (struct sockaddr *)remote, sizeof(struct sockaddr)) < 0){
     //Could not connect
     return NULL;
   }
   post = build_post_query(host, page, data);
-    
+
   //Send the query to the server
   int sent = 0;
   while(sent < strlen(post)) {
@@ -67,7 +67,6 @@ char* http_post(char *host, char *page, char *data)
   memset(buf, 0, sizeof(buf));
   int htmlstart = 0;
   char * htmlcontent;
-  char all[1000];
   size_t alllen = 0;
   while((tmpres = recv(sock, buf, BUFSIZE, 0)) > 0){
     if(htmlstart == 0){
@@ -76,22 +75,22 @@ char* http_post(char *host, char *page, char *data)
         htmlstart = 1;
         htmlcontent += 4;
         alllen += buf + tmpres - htmlcontent;
-        memcpy(all, htmlcontent, alllen);
+        memcpy(response, htmlcontent, alllen);
       }
     }else{
-      memcpy(all+alllen, buf, tmpres);
+      memcpy(response+alllen, buf, tmpres);
       alllen += tmpres;
     }
     memset(buf, 0, tmpres);
   }
-  all[alllen] = '\0';
+  response[alllen] = '\0';
   if(htmlstart){
     free(post);
     free(remote);
     free(ip);
     close(sock);
     //fprintf(stdout, "%s", htmlcontent);
-    return all;
+    return 1;
   }
   //Error receiving data
   return NULL;
@@ -101,12 +100,12 @@ char *build_post_query(char *host, char *page, char *data)
 {
   char *query;
   char *postpage = page;
-  char *tpl = "POST /%s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\n\r\n%s";
+  char *tpl = "POST /%s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\nContent-Length: %d\r\n\r\n%s";
   if(postpage[0] == '/'){
     postpage += 1;
   }
-  query = (char *)malloc(strlen(host)+strlen(postpage)+strlen(USERAGENT)+strlen(tpl)-5);
-  sprintf(query, tpl, postpage, host, USERAGENT, data);
+  query = (char *)malloc(strlen(host)+strlen(postpage)+strlen(USERAGENT)+strlen(data)+strlen(tpl)-9+3);
+  sprintf(query, tpl, postpage, host, USERAGENT, strlen(data), data);
   return query;
 }
 

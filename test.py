@@ -17,7 +17,7 @@ if os.path.exists(output_file) and not os.path.exists(output_file + '.st'):
     print 'file completed already, skip download'
     exit()
 
-args = ["../axel", "-a", "-n 1", "-s %s" % maxspeed, url, "--output=%s" % output]
+args = ["../axel", "-a", "-n", "1", "-s", str(maxspeed), "-o", output, "-H", "User-Agent: Axel", url]
 axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
 
 #print axel_process.communicate()

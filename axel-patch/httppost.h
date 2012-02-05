@@ -5,5 +5,5 @@
 #include <netdb.h>
 #include <string.h>
 
-char* http_post(char *host, char *page, char *data);
+int http_post(char *host, int port, char *page, char *data, char *response);
 char *build_post_query(char *host, char *page, char *data);

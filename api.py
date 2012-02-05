@@ -1,10 +1,11 @@
 import logging as log
 import os, shutil, subprocess, time, urlparse
+from socket import timeout
 import db
 
 DEFAULT_THREAD_SIZE=5
 INCOMMING="incomming"
-DOWNLOAD="download"
+DOWNLOADS="downloads"
 
 STATE_WAITING=1
 STATE_DOWNLOADING=2
@@ -45,6 +46,8 @@ class API(object):
             elif action == 'sort':
                 ids = data["ids"]
                 ret = self.sort(ids)
+            elif action == 'maxspeed':
+                return "1000";
             else:
                 raise APIError(APIError.ERROR_REQUEST_DATA_INVALID)
             
@@ -65,12 +68,16 @@ class API(object):
         url = options["url"]
         output = options["output"] if options.has_key("output") else \
             os.path.basename(urlparse.urlparse(url)[2])
-        state = 1 if options.has_key("immediately") and options["immediately"] else 3
+        if not options.has_key("immediately") or options["immediately"]: state = STATE_DOWNLOADING
+        else: state = STATE_PAUSED
         thsize = options["thsize"] if options.has_key("thsize") else DEFAULT_THREAD_SIZE
         maxspeed = options["maxspeed"] if options.has_key("maxspeed") else 0
         headers = options["headers"] if options.has_key("headers") else ""
 
         tid = db.insert_task(url=url, output=output, state=state, thsize=thsize, maxspeed=maxspeed, headers=headers)
+
+        if state == STATE_PAUSED:
+            return
 
         #create axel task
         pid = os.fork()
@@ -87,9 +94,10 @@ class API(object):
               print 'file completed already, skip download'
               exit()
 
-          args = ["../axel", "-a", "-n %s" % thsize, "-s %s" % maxspeed, url, "--output=%s" % output]
+          args = ["../axel", "-a", "-n", str(thsize), "-s", str(maxspeed), "-o", output]
           for header in headers.splitlines():
-              args.append("--header='%s'" % header)
+              args.append("-H", header)
+          args.append(url)
           axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
 
           last_update_time = 0
@@ -99,13 +107,16 @@ class API(object):
                   task = tasks[0]
                   state = task["state"]
                   if state == STATE_DOWNLOADING:
-                      axel_process.stdout.settimeout(1)
+                      line = axel_process.stdout.readline().strip()
                       try:
-                          line = axel_process.stdout.readline().strip()
                           if line.startswith(":"):
-# compute time interval
                               done, total, thdone, speed, left, update_time = line[1:].split("|")
-                              db.update_tasks(tid, done=int(done), total=int(total), thdone=thdone, speed=int(speed), left=int(left))
+                              db.update_tasks(tid, done=int(done), total=int(total), thdone=thdone, speed=int(float((speed))), left=int(float(left)))
+                              if done == total:
+                                  #completed
+                                  db.update_tasks(tid, state=STATE_COMPLETED)
+                                  os.rename(output_file, os.path.join(DOWNLOADS, output))
+                                  break
                               this_update_time = time.time()
                               if this_update_time - last_update_time < 1:
                                   last_update_time = this_update_time
@@ -119,22 +130,23 @@ class API(object):
                           elif line.startswith("HTTP/1."):
                               db.update_tasks(tid, state=STATE_ERROR, errmsg=line)
                               break
-                      except IOError: # TODO timeout
-                          speed = task['speed'] / 2
-                          left = task['left'] * 2 + 1
-                          db.update_tasks(tid, speed=int(speed), left=int(left))
-                          continue
-                      except:
-                          continue
-                      axel_process.poll()
-                      returncode = process.returncode
-                      if returncode is not None:
-                          # axel completed
-                          if returncode:
-                              db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
-                          break
-                  break
-              axel_process.terminate()
+                      except Exception, e:
+                          import traceback
+                          traceback.print_exc()
+                          db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % e)
+                          try:
+                              axel_process.terminate()
+                          except:
+                              pass
+                          return
+                  else:
+                      break
+              axel_process.poll()
+              returncode = axel_process.returncode
+              if returncode is not None:
+                  # axel completed
+                  if returncode:
+                      db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
     def tasks(self, options):
         return db.select_tasks(**options)
 

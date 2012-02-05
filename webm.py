@@ -3,6 +3,7 @@
 
 import web, logging as log, pprint, json
 from api import *
+import traceback
 
 f=pprint.pformat
 
@@ -14,12 +15,12 @@ class Router(object):
             try:
                 json_data = json.loads(web.data())
             except Exception, e:
+                traceback.print_exc()
                 raise web.badrequest()
             
             try:
                 return API().serve(json_data)
             except Exception, e:
-                import traceback
                 traceback.print_exc()
                 raise web.internalerror(e.message)
         else:

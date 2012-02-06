@@ -1,0 +1,14 @@
+*{margin:0;padding:0;}
+body{padding:0;font-size:12px;}
+
+table#list{border-collapse:collapse;}
+table#list td{padding:5px;}
+table#list thead{cursor:pointer;background-color:#CCCCCC;}
+table#list tbody tr:nth-child(odd){background-color:#DDDDDD;}
+table#list tbody tr:nth-child(even){background-color:#F3F3F3;}
+
+#create{z-index:1000;position:absolute;border:3px solid blue;display:none;}
+#create .actions{float:right;}
+
+#background{left:0;top:0;position:absolute;display:none;}
+#list thead td{font-weight:bold;}

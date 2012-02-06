@@ -126,7 +126,7 @@ def update_tasks(dids, **kwargs):
     SQL += " where id = %s " % dids if type(dids) is int else \
         " where id in (%s) " % ", ".join([str(did) for did in dids])
 
-    print SQL
+    log.debug(SQL)
     cursor.execute(SQL)
     dbc.commit()
     dbc.close()

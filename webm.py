@@ -13,6 +13,7 @@ class Router(object):
     def POST(self, uri):
         if uri == 'api':
             try:
+                print web.data()
                 json_data = json.loads(web.data())
             except Exception, e:
                 traceback.print_exc()
@@ -35,6 +36,15 @@ class Router(object):
         else:
             raise web.notfound()
         
+        try:
+            with open(filename) as staticfile:
+                filecontent = staticfile.read()
+                files[filename] = filecontent
+                return filecontent
+        except IOError, e:
+            if e.errno == 2:
+                raise web.notfound()
+        return
         if files.has_key(filename):
             return files[filename]
         else:

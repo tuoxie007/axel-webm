@@ -63,7 +63,7 @@ urls = (
 
 app = web.application(urls, globals())
 
-log.basicConfig(level=log.DEBUG)
+log.basicConfig(level=log.DEBUG, filename='/tmp/log2')
 if __name__ == "__main__":
     app.run()
     

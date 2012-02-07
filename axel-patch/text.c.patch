@@ -40,7 +40,7 @@
 < 	
 ---
 >   printf( "|%d|", axel->bytes_per_second );
-521,531c501
+521,531c501,504
 < 		int seconds,minutes,hours,days;
 < 		seconds=axel->finish_time - now;
 < 		minutes=seconds/60;seconds-=minutes*60;
@@ -53,8 +53,11 @@
 < 		else
 < 			printf(" [%02d:%02d]",minutes,seconds);
 ---
->     printf("%lf|", axel->finish_time - now);
-532a503,511
+>     if (axel->finish_time > now)
+>       printf("%lf|", axel->finish_time - now);
+>     else
+>       printf("0|");
+532a506,514
 >   else
 >     printf("0|");
 > 

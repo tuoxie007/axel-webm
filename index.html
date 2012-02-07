@@ -14,22 +14,28 @@
 <body>
   <div id="wrap">
     <div id="toolbar">
-      <button>Add</button>
-      <button>Pause</button>
-      <button>Remove</button>
-      <button>Top</button>
-      <button>Bottom</button>
+      <button class="create">Add</button>
+      <button class="pause">Pause</button>
+      <button class="remove">Remove</button>
+      <button class="resume">Resume</button>
+      <!--
+      <button class="top">Top</button>
+      <button class="bottom">Bottom</button>
+      -->
     </div>
     <table id="list" width="100%">
       <thead>
         <tr>
-          <td class="id">ID</td>
+          <td width="50" class="select">Select</td>
+          <td width="40" class="id">ID</td>
+          <td width="50" class="state">State</td>
           <td class="filename">Filename</td>
-          <td class="size">Size</td>
-          <td class="subdir">Subdir</td>
-          <td class="url">URL</td>
-          <td class="speed">Speed</td>
-          <td class="lte">LTE</td>
+          <td width="50" class="done">Done</td>
+          <td width="50" class="size">Size</td>
+          <td width="100" class="subdir">Subdir</td>
+          <!--<td class="url">URL</td>-->
+          <td width="50" class="speed">Speed</td>
+          <td width="50" class="lte">LTE</td>
         </tr>
       </thead>
       <tbody>
@@ -45,19 +51,19 @@
       </tr>
       <tr>
         <th>Filename</th>
-        <td><input name="filename" size="70" style="width:600px;"></td>
+        <td><input type="text" name="filename" size="70" style="width:600px;"></td>
       </tr>
       <tr>
         <th>Subdir</th>
-        <td><input name="subdir" size="70" style="width:600px;"></td>
+        <td><input type="text" name="subdir" size="70" style="width:600px;"></td>
       <tr>
         <th>Download Now</th>
         <td><input name="immediately" type="checkbox" checked></td>
       </tr>
     </table>
     <div class="actions">
-      <button>Cancel</button>
-      <button>Create</button>
+      <button class="cancel">Cancel</button>
+      <button class="create">Create</button>
     </div>
   </div>
   <div id="background">

@@ -498,7 +498,10 @@ static void print_alternate_output(axel_t *axel)
   printf( "|%d|", axel->bytes_per_second );
 	if(done<total)
 	{
-    printf("%lf|", axel->finish_time - now);
+    if (axel->finish_time > now)
+      printf("%lf|", axel->finish_time - now);
+    else
+      printf("0|");
 	}
   else
     printf("0|");

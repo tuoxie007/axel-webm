@@ -87,7 +87,6 @@ int conf_loadfile( conf_t *conf, char *file )
 		get_config_number( num_connections );
 		get_config_number( buffer_size );
 		get_config_number( max_speed );
-		get_config_number( tid );
 		get_config_number( verbose );
 		get_config_number( alternate_output );
 		
@@ -131,11 +130,10 @@ int conf_init( conf_t *conf )
 	conf->strip_cgi_parameters	= 1;
 	conf->save_state_interval	= 10;
 	conf->connection_timeout	= 45;
-	conf->reconnect_delay		= 20;
+	conf->reconnect_delay		= 5;
 	conf->num_connections		= 4;
 	conf->buffer_size		= 5120;
 	conf->max_speed			= 0;
-	conf->tid = 0;
 	conf->verbose			= 1;
 	conf->alternate_output		= 0;
 	

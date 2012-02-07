@@ -21,20 +21,30 @@ String.prototype.empty=function() {
 
 Number.prototype.human=function() {
     if (this < 1024)
-        return this + 'B';
+        return parseInt(this) + 'B';
     else if (this < 1024 * 1024)
-        return this/1024 + 'KB';
+        return parseInt(this/1024*10)/10 + 'KB';
     else if (this < 1024 * 1024 * 1024)
-        return this/1024/1024 + 'MB';
+        return parseInt(this/1024/1024*10)/10 + 'MB';
     else if (this < 1024 * 1024 * 1024 * 1024)
-        return this/1024/1024/1024 + 'GB';
+        return parseInt(this/1024/1024/1024*10)/10 + 'GB';
     else
-        return this/1024/1024/1024/1024 + 'TB';
+        return parseInt(this/1024/1024/1024/1024*10)/10 + 'TB';
+}
+Number.prototype.time=function() {
+    if (this < 60)
+      return this + ' S';
+    else if (this < 3600)
+      return parseInt(this/60) + ' M';
+    else if (this < 3600)
+      return parseInt(this/3600) + ' H';
+    else
+      return parseInt(this/3600/24) + ' D';
 }
 
 
-$(window.webm=function() {
-this.api = function(action, data, callback) {
+$(function() {
+function api(action, data, callback) {
   if (data == undefined)
     data = new Object;
   data['action'] = action;
@@ -43,20 +53,55 @@ this.api = function(action, data, callback) {
     type:'POST',
     data:JSON.stringify(data),
     dataType:'json',
-    success:callback,
+    success:function(ret) {
+      callback(ret);
+    },
     error:function(ret){
       console.log(ret);
     }
   });
 }
 
-this.init = function() {
+function init() {
+  $('#toolbar .create').click(open_create_dialog);
   $('#create button.create').click(function(){
-    //
+    var urls = $('#create textarea[name="url"]').val();
+    var output = $('#create input[name="filename"]').val();
+    var subdir = $('#create input[name="subdir"]').val();
+    var immediately = $('#create input[name="immediately"]').attr('checked') == 'checked';
+    urls = urls.split('\n');
+    if (urls.length > 1)
+      output = "";
+    for (var i in urls) {
+      var url = urls[i];
+      var options = {options:{url:url, output:output, subdir:subdir, immediately:immediately}};
+      api('create', options);
+    }
+    close_create_dialog();
+    refresh();
   });
-  $('#create button.cancel').click(function(){
-    //
+  $('#toolbar button.pause').click(function(){
+    var ids = [];
+    $('#list input[type="checkbox"]').each(function(i){
+      ids.push($(this).val());
+    });
+    pause(ids);
   });
+  $('#toolbar button.remove').click(function(){
+    var ids = [];
+    $('#list input[type="checkbox"]').each(function(i){
+      ids.push($(this).val());
+    });
+    remove(ids);
+  });
+  $('#toolbar button.resume').click(function(){
+    var ids = [];
+    $('#list input[type="checkbox"]').each(function(i){
+      ids.push($(this).val());
+    });
+    resume(ids);
+  });
+  $('#create button.cancel').click(close_create_dialog);
   $('#list td.url').click(function(){
     //
   });
@@ -64,40 +109,53 @@ this.init = function() {
     //
   });
 
-  this.refresh();
+  refresh();
+  setInterval(refresh, 5000);
 }
 
-this.create_table = function(tasks) {
-  var trs = new Array;
-  $.each(tasks, function(i) {
-    var tr = '<tr>';
-    tr += '<td>%s</td>'.fs(task.id);
-    tr += '<td>%s</td>'.fs(task.output);
-    tr += '<td>%s</td>'.fs(task.total.human());
-    tr += '<td>%s</td>'.fs(task.subdir);
-    tr += '<td>%s</td>'.fs(task.url);
-    tr += '<td>%s</td>'.fs(task.speed);
-    tr += '<td>%s</td>'.fs(task.lte);
-    tr += '</tr>';
-    trs.push(tr);
-  });
-  trs.join('');
-}
-
-this.refresh = function() {
-  this.api('tasks', null, function(return_content){
+function refresh() {
+  api('tasks', null, function(return_content){
+    states = {1:'W', 2:'D', 3:'P', 4:'C', 5:'E'}
     var tasks = return_content['result'];
     var trs = "";
     $.each(tasks, function(i) {
       var task = tasks[i];
-      var tr = '<tr>';
+      if (states[task.state] == 'C')
+          var tr = '<tr class="completed">';
+      else if (states[task.state] == 'D')
+          var tr = '<tr class="downloading">';
+      else if (states[task.state] == 'P')
+          var tr = '<tr class="pause">';
+      else if (states[task.state] == 'W')
+          var tr = '<tr class="waitting">';
+      else
+          var tr = '<tr>';
+      if($('#list input[value="%s"]'.fs(task.id)).length) {
+        tr += '<td><input type="checkbox" value="%s" checked></td>'.fs(task.id);
+      } else {
+        tr += '<td><input type="checkbox" value="%s"></td>'.fs(task.id);
+      }
       tr += '<td>%s</td>'.fs(task.id);
+      tr += '<td>%s</td>'.fs(states[task.state]);
       tr += '<td>%s</td>'.fs(task.output);
+      if (states[task.state] == 'C')
+          done = '';
+      else
+          done = task.done ? task.done.human() : ''
+      tr += '<td>%s</td>'.fs(done);
       tr += '<td>%s</td>'.fs(task.total ? task.total.human() : '');
       tr += '<td>%s</td>'.fs(task.subdir);
-      tr += '<td>%s</td>'.fs(task.url);
-      tr += '<td>%s</td>'.fs(task.speed);
-      tr += '<td>%s</td>'.fs(task.lte);
+      //tr += '<td>%s</td>'.fs(task.url);
+      if (states[task.state] == 'C')
+          speed = '';
+      else
+          speed = task.speed ? task.speed.human() : '';
+      tr += '<td>%s</td>'.fs(speed);
+      if (states[task.state] == 'C')
+          left = '';
+      else
+          left = task.left !== null ? task.left.time() : '';
+      tr += '<td>%s</td>'.fs(left);
       tr += '</tr>';
       trs += tr;
     });
@@ -106,7 +164,7 @@ this.refresh = function() {
   });
 }
 
-this.open_create_dialog = function() {
+function open_create_dialog() {
   var $d = $(document);
   var ww = $d.width();
   var wh = $d.height();
@@ -126,28 +184,28 @@ this.open_create_dialog = function() {
   $('#background').css({display:'block',width:ww,height:wh});
 }
 
-this.close_create_dialog = function() {
+function close_create_dialog() {
   $('#create').hide();
   $('#background').hide();
 }
 
-this.pause = function(ids) {
-  var ret = this.api('pause', {ids:ids});
-  if (!ret.success)
-    this.alert('Error!')
+function pause(ids) {
+  api('pause', {ids:ids}, refresh);
 }
 
-this.remove = function(ids) {
-  var ret = this.api('remove', {ids:ids});
-  if (!ret.success)
-    this.alert('Error!')
+function remove(ids) {
+  api('remove', {ids:ids}, refresh);
 }
 
-this.settop = function() {
+function resume(ids) {
+  api('resume', {ids:ids}, refresh);
 }
 
-this.setbottom = function() {
+function settop() {
 }
 
-this.init();
+function setbottom () {
+}
+
+init();
 });

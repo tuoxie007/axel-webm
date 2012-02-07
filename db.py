@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sqlite3, logging as log
+import sqlite3, datetime, logging as log
 
 DB_FILE='Tasks.db'
 SQL_CREATE="""create table tasks(
@@ -21,7 +21,8 @@ maxspeed integer,
 headers text,
 speed integer,
 update_time timestamp default current_timestamp,
-errmsg text)
+errmsg text,
+subdir text)
 """
 
 def reset_database():
@@ -47,6 +48,7 @@ def select_tasks(**kwargs):
                 SQL += " `%s` %s " % (key, value)
     
     SQL += " order by `order`, `id`"
+    log.debug(SQL)
     cursor.execute(SQL)
     dbc.commit()
     tasks = []
@@ -68,7 +70,8 @@ def select_tasks(**kwargs):
                       "headers": row[14],
                       "speed": row[15],
                       "update_time": row[16],
-                      "errmsg": row[17]})
+                      "errmsg": row[17],
+                      "subdir": row[18]})
     dbc.close()
     return tasks
 
@@ -84,9 +87,12 @@ def insert_task(**kwargs):
     for key, value in kwargs.items():
         columns.append("`%s`" % key)
         values.append("%s" % value if type(value) is int else "'%s'" % value)
+    columns.append("`update_time`")
+    values.append("'%s'" % datetime.datetime.now())
     columns = ", ".join(columns)
     values = ", ".join(values)
     SQL = "insert into tasks (%s) values (%s)" % (columns, values)
+    log.debug(SQL)
     cursor.execute(SQL)
     dbc.commit()
     tid = cursor.lastrowid
@@ -104,6 +110,7 @@ def delete_tasks(ids):
     SQL += " id = %s " % ids if type(ids) is int else \
         " id in (%s) " % ", ".join([str(did) for did in ids])
 
+    log.debug(SQL)
     cursor.execute(SQL)
     dbc.commit()
     dbc.close()
@@ -121,6 +128,7 @@ def update_tasks(dids, **kwargs):
     for key, value in kwargs.items():
         sets.append(" `%s` = %s " % (key, value) if type(value) is int else \
             " `%s` = '%s' " % (key, value))
+    sets.append(" `update_time` = '%s' " % datetime.datetime.now())
     SQL += ",".join(sets)
 
     SQL += " where id = %s " % dids if type(dids) is int else \
@@ -157,4 +165,4 @@ def test():
     print test_select()
 
 if __name__ == '__main__':
-    test()
+    reset_database()

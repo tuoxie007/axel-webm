@@ -1,4 +1,4 @@
-89a90
-> 		get_config_number( tid );
-136a138
-> 	conf->tid = 0;
+133c133
+< 	conf->reconnect_delay		= 20;
+---
+> 	conf->reconnect_delay		= 5;

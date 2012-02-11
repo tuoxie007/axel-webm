@@ -44,7 +44,7 @@ Number.prototype.time=function() {
 
 
 $(function() {
-var pdata = {states:['A', 'D', 'C', 'W', 'P', 'E']};
+var pdata = {current:'A', states:['A', 'D', 'C', 'W', 'P', 'E']};
 $.extend({'alert': function(msg){
   $('#msg').text(msg).show();
 },
@@ -90,6 +90,12 @@ function init() {
       output = "";
     for (var i in urls) {
       var url = urls[i];
+      var parts = url.split('\t');
+      console.log(parts);
+      if (parts.length > 1) {
+        url = parts[0];
+        output = parts[1];
+      }
       var options = {options:{url:url, headers:headers, output:output, subdir:subdir, immediately:immediately}};
       api('create', options);
     }
@@ -202,23 +208,24 @@ function refresh() {
     var trs = "";
     $.each(tasks, function(i) {
       var task = tasks[i];
+      var errmsg_title = states[task.state] == 'E' ? 'title="%s"'.fs(task.errmsg) : '';
       if (states[task.state] == 'C')
-          var tr = '<tr class="%s C completed">'.fs(i % 2 ? 'odd' : 'even');
+          var tr = '<tr %s class="%s C completed %s>'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='C' && pdata.current!='A' ? 'hidden' : '');
       else if (states[task.state] == 'D')
-          var tr = '<tr class="%s D downloading">'.fs(i % 2 ? 'odd' : 'even');
+          var tr = '<tr %s class="%s D downloading %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='D' && pdata.current!='A' ? 'hidden' : '');
       else if (states[task.state] == 'P')
-          var tr = '<tr class="%s P pause">'.fs(i % 2 ? 'odd' : 'even');
+          var tr = '<tr %s class="%s P pause %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='P' && pdata.current!='A' ? 'hidden' : '');
       else if (states[task.state] == 'W')
-          var tr = '<tr class="%s W waitting">'.fs(i % 2 ? 'odd' : 'even');
+          var tr = '<tr %s class="%s W waitting %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='W' && pdata.current!='A' ? 'hidden' : '');
       else
-          var tr = '<tr class="%s E error">'.fs(i % 2 ? 'odd' : 'even');
+          var tr = '<tr %s class="%s E error %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='E' && pdata.current!='A' ? 'hidden' : '');
       if($('#list input[value="%s"]:checked'.fs(task.id)).length) {
         tr += '<td class="center"><input type="checkbox" value="%s" checked></td>'.fs(task.id);
       } else {
         tr += '<td class="center select"><input type="checkbox" value="%s"></td>'.fs(task.id);
       }
       tr += '<td class="center">%s</td>'.fs(task.id);
-      tr += '<td title="%s" class="center state %s">%s</td>'.fs(task.errmsg, states[task.state], states[task.state]);
+      tr += '<td class="center state %s">%s</td>'.fs(states[task.state], states[task.state]);
       tr += '<td class="filename">%s</td>'.fs(task.output);
       var total = task.total ? task.total.human() : '';
       if (states[task.state] == 'C')

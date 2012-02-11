@@ -4,3 +4,4 @@ Tasks.db
 *.pyc
 build/
 axel
+webm.log

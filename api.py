@@ -3,8 +3,8 @@ import logging as log
 import db
 
 DEFAULT_THREAD_SIZE=5
-INCOMMING="incomming"
-DOWNLOADS="downloads"
+INCOMMING="/data/Downloads/incomming"
+DOWNLOADS="/data/Downloads/downloads"
 
 STATE_WAITING=1
 STATE_DOWNLOADING=2
@@ -88,7 +88,6 @@ class API(object):
         tid = int(tid)
         if not options:
             tasks = db.select_tasks(id=tid)
-            print tasks
             if tasks:
                 task = tasks[0]
                 url = task["url"]
@@ -100,9 +99,9 @@ class API(object):
                 subdir = task["subdir"]
                 if state not in (STATE_WAITING, STATE_PAUSED, STATE_ERROR):
                     return
-                db.update_tasks(tid, state=STATE_DOWNLOADING)
-            else:
-                return
+                db.update_tasks(tid, state=STATE_WAITING)
+                self.download_more()
+            return
         else:
             url = options["url"]
             output = options["output"] if options.has_key("output") and options["output"] else \
@@ -135,11 +134,13 @@ class API(object):
                 print 'file completed already, skip download'
                 exit()
 
-            args = ["../axel", "-a", "-n", str(thsize), "-s", str(maxspeed), "-o", output]
+            args = [os.path.join(os.getcwd(), "axel"), "-a", "-n", str(thsize), "-s", str(maxspeed)]
             for header in headers.splitlines():
                 args.append("-H")
                 args.append(header)
-            args.append(url)
+            args.append("-o")
+            args.append(output)
+            os.system("mkdir -p %s" % os.path.join(INCOMMING, subdir))
             axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
 
             last_update_time = 0

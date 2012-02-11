@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import web, logging as log, pprint, json
+import web, logging as log, pprint, json, db
 from api import *
 import traceback
 
@@ -65,6 +65,10 @@ app = web.application(urls, globals())
 
 log.basicConfig(level=log.DEBUG, filename='/tmp/log2')
 if __name__ == "__main__":
+    try:
+      db.select_tasks(id=1)
+    except:
+      db.reset_database()
     API().download_more()
     app.run()
     

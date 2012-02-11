@@ -192,7 +192,7 @@ function init() {
   });
 
   refresh();
-//  setInterval(refresh, 5000);
+  setInterval(refresh, 5000);
 }
 
 function refresh() {

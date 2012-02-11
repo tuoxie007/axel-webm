@@ -17,25 +17,34 @@
       <button class="create">Add</button>
       <button class="pause">Pause</button>
       <button class="remove">Remove</button>
-      <button class="resume">Resume</button>
-      <!--
-      <button class="top">Top</button>
-      <button class="bottom">Bottom</button>
-      -->
+      <button class="resume">Start</button>
+      <div id="msg">
+      </div>
+      <div id="states">
+        <span class="A current">All States</span>
+        <span class="D">Downlaoding</span>
+        <span class="C">Completed</span>
+        <span class="P">Paused</span>
+        <span class="W">Waitting</span>
+        <span class="E">Error</span>
+        <div class="clear">
+        </div>
+      </div>
+      <div class="clear">
+      </div>
     </div>
     <table id="list" width="100%">
       <thead>
         <tr>
-          <td width="50" class="select">Select</td>
-          <td width="40" class="id">ID</td>
-          <td width="50" class="state">State</td>
-          <td class="filename">Filename</td>
-          <td width="50" class="done">Done</td>
-          <td width="50" class="size">Size</td>
-          <td width="100" class="subdir">Subdir</td>
+          <th width="50"  class="select">Select</th>
+          <th width="40"  class="id">ID</th>
+          <th width="50"  class="state">State</th>
+          <th             class="filename">Filename</th>
+          <th width="120"  class="done">Done</th>
+          <th width="100" class="subdir">Subdir</th>
           <!--<td class="url">URL</td>-->
-          <td width="50" class="speed">Speed</td>
-          <td width="50" class="lte">LTE</td>
+          <th width="50"  class="speed">Speed</th>
+          <th width="50"  class="eta">ETA</th>
         </tr>
       </thead>
       <tbody>
@@ -48,6 +57,10 @@
       <tr>
         <th>URL</th>
         <td><textarea name="url" cols="70" rows="10" style="width:600px;"></textarea></td>
+      </tr>
+      <tr>
+        <th>Headers</th>
+        <td><textarea name="headers" cols="70" rows="5" style="width:600px;"></textarea></td>
       </tr>
       <tr>
         <th>Filename</th>

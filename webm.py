@@ -65,5 +65,6 @@ app = web.application(urls, globals())
 
 log.basicConfig(level=log.DEBUG, filename='/tmp/log2')
 if __name__ == "__main__":
+    API().download_more()
     app.run()
     

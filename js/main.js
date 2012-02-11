@@ -44,6 +44,13 @@ Number.prototype.time=function() {
 
 
 $(function() {
+var pdata = {states:['A', 'D', 'C', 'W', 'P', 'E']};
+$.extend({'alert': function(msg){
+  $('#msg').text(msg).show();
+},
+'unalert': function(){
+  $('#msg').hide();
+}});
 function api(action, data, callback) {
   if (data == undefined)
     data = new Object;
@@ -65,7 +72,16 @@ function api(action, data, callback) {
 function init() {
   $('#toolbar .create').click(open_create_dialog);
   $('#create button.create').click(function(){
-    var urls = $('#create textarea[name="url"]').val();
+    var urls = $.trim($('#create textarea[name="url"]').val());
+    if (!urls) {
+      $.alert('Please input the urls');
+      setTimeout(function(){
+        $.unalert();
+      }, 5000);
+      close_create_dialog();
+      return;
+    }
+    var headers = $('#create textarea[name="headers"]').val();
     var output = $('#create input[name="filename"]').val();
     var subdir = $('#create input[name="subdir"]').val();
     var immediately = $('#create input[name="immediately"]').attr('checked') == 'checked';
@@ -74,7 +90,7 @@ function init() {
       output = "";
     for (var i in urls) {
       var url = urls[i];
-      var options = {options:{url:url, output:output, subdir:subdir, immediately:immediately}};
+      var options = {options:{url:url, headers:headers, output:output, subdir:subdir, immediately:immediately}};
       api('create', options);
     }
     close_create_dialog();
@@ -82,35 +98,101 @@ function init() {
   });
   $('#toolbar button.pause').click(function(){
     var ids = [];
-    $('#list input[type="checkbox"]').each(function(i){
+    $('#list input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
     pause(ids);
   });
   $('#toolbar button.remove').click(function(){
     var ids = [];
-    $('#list input[type="checkbox"]').each(function(i){
+    $('#list input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
     remove(ids);
   });
   $('#toolbar button.resume').click(function(){
     var ids = [];
-    $('#list input[type="checkbox"]').each(function(i){
+    $('#list input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
     resume(ids);
   });
   $('#create button.cancel').click(close_create_dialog);
-  $('#list td.url').click(function(){
-    //
+  $('#list td.filename').live('click', function(){
+    if($(this).parent().next().css('display') != 'none') {
+      $(this).parent().next().hide('fast');
+    }else{
+      $(this).parent().next().show('fast');
+    }
   });
   $('#list thead td').click(function(){
     //
   });
+  $('#list th.select').click(function(){
+    if($(this).find('select').length)
+      return;
+    var selector  = $('<select>'
+                      + '<option value="A">All</option>'
+                      + '<option value="D">D</option>'
+                      + '<option value="C">C</option>'
+                      + '<option value="P">P</option>'
+                      + '<option value="W">W</option>'
+                      + '<option value="E">E</option>'
+                      + '<option value="N">None</option>'
+                    + '</select>');
+    $('#list td input[type="checkbox"]').attr('checked', 'checked');
+    var td = $(this);
+    selector.change(function(){
+      var selected = $(this).val();
+      if (selected == 'A')
+        $('#list td input[type="checkbox"]').attr('checked', 'checked');
+      else if (selected == 'N')
+        $('#list td input[type="checkbox"]').removeAttr('checked');
+      else{
+        $('#list td input[type="checkbox"]').removeAttr('checked');
+        $('#list tr.%s'.fs(selected)).find('td input[type="checkbox"]').attr('checked', 'checked');
+      }
+      td.html('Select');
+    });
+    $(this).html('').append(selector);
+    return true;
+  });
+  $('#list td.select').live('click', function() {
+    var selector = $(this).find('input');
+    if (selector.attr('checked'))
+      selector.removeAttr('checked');
+    else
+      selector.attr('checked', 'checked');
+  });
+  $('#list td.select input').live('click', function(event) {
+    event.stopPropagation()
+  });
+  $(window).resize(function(){
+    reset_progress_length();
+  });
+  $('#states span').click(function(){
+    $('#states span').removeClass('current');
+    var cssClass = $(this).attr('class');
+    $(this).addClass('current');
+    pdata.current = cssClass;
+    $('#list tbody tr').each(function(){
+      var cc = $(this).attr('class');
+      for (var i in pdata.states) {
+        var s = pdata.states[i];
+        if ($.inArray(s, cc.split(' '))>=0) {
+          if (cssClass == 'A' || s == cssClass) {
+            $(this).show();
+          } else {
+            $(this).hide();
+          }
+          break;
+        }
+      }
+    });
+  });
 
   refresh();
-  setInterval(refresh, 5000);
+//  setInterval(refresh, 5000);
 }
 
 function refresh() {
@@ -121,46 +203,65 @@ function refresh() {
     $.each(tasks, function(i) {
       var task = tasks[i];
       if (states[task.state] == 'C')
-          var tr = '<tr class="completed">';
+          var tr = '<tr class="%s C completed">'.fs(i % 2 ? 'odd' : 'even');
       else if (states[task.state] == 'D')
-          var tr = '<tr class="downloading">';
+          var tr = '<tr class="%s D downloading">'.fs(i % 2 ? 'odd' : 'even');
       else if (states[task.state] == 'P')
-          var tr = '<tr class="pause">';
+          var tr = '<tr class="%s P pause">'.fs(i % 2 ? 'odd' : 'even');
       else if (states[task.state] == 'W')
-          var tr = '<tr class="waitting">';
+          var tr = '<tr class="%s W waitting">'.fs(i % 2 ? 'odd' : 'even');
       else
-          var tr = '<tr>';
-      if($('#list input[value="%s"]'.fs(task.id)).length) {
-        tr += '<td><input type="checkbox" value="%s" checked></td>'.fs(task.id);
+          var tr = '<tr class="%s E error">'.fs(i % 2 ? 'odd' : 'even');
+      if($('#list input[value="%s"]:checked'.fs(task.id)).length) {
+        tr += '<td class="center"><input type="checkbox" value="%s" checked></td>'.fs(task.id);
       } else {
-        tr += '<td><input type="checkbox" value="%s"></td>'.fs(task.id);
+        tr += '<td class="center select"><input type="checkbox" value="%s"></td>'.fs(task.id);
       }
-      tr += '<td>%s</td>'.fs(task.id);
-      tr += '<td>%s</td>'.fs(states[task.state]);
-      tr += '<td>%s</td>'.fs(task.output);
+      tr += '<td class="center">%s</td>'.fs(task.id);
+      tr += '<td title="%s" class="center state %s">%s</td>'.fs(task.errmsg, states[task.state], states[task.state]);
+      tr += '<td class="filename">%s</td>'.fs(task.output);
+      var total = task.total ? task.total.human() : '';
       if (states[task.state] == 'C')
-          done = '';
+          var done = total;
       else
-          done = task.done ? task.done.human() : ''
-      tr += '<td>%s</td>'.fs(done);
-      tr += '<td>%s</td>'.fs(task.total ? task.total.human() : '');
-      tr += '<td>%s</td>'.fs(task.subdir);
+          var done = task.done ? task.done.human() : ''
+      if (!done && !total)
+        tr += '<td class=""></td>';
+      else
+        tr += '<td class="done"><div percent="%s" class="progress"><span class="filename">%s / %s</span></div></td></td>'.fs(states[task.state] == 'C' ? 1 : task.done/task.total, done, total);
+      tr += '<td class="center">%s</td>'.fs(task.subdir);
       //tr += '<td>%s</td>'.fs(task.url);
       if (states[task.state] == 'C')
           speed = '';
+      else if (task.speed == 0)
+          speed = 0;
       else
           speed = task.speed ? task.speed.human() : '';
-      tr += '<td>%s</td>'.fs(speed);
+      tr += '<td class="center">%s</td>'.fs(speed);
       if (states[task.state] == 'C')
           left = '';
       else
           left = task.left !== null ? task.left.time() : '';
-      tr += '<td>%s</td>'.fs(left);
+      tr += '<td class="center">%s</td>'.fs(left);
       tr += '</tr>';
+
+      if ($('#list tr#url-%s'.fs(task.id)).length && $('#list tr#url-%s'.fs(task.id)).css('display') != 'none')
+        tr += '<tr style="display:table-row;" id="url-' + task.id + '" class="url"><td colspan="3"></td><td colspan="6">' + task.url + '</td></tr>';
+      else
+        tr += '<tr id="url-' + task.id + '" class="url"><td colspan="3"></td><td colspan="5">' + task.url + '</td></tr>';
       trs += tr;
     });
-    console.log(trs);
     $('#wrap table tbody').html(trs);
+    reset_progress_length();
+  });
+}
+
+function reset_progress_length(){
+  $('#list .progress').width(0).each(function(i){
+    var percent = $(this).attr('percent');
+    var width = $(this).parent().width();
+    $(this).width(width * percent);
+    $(this).find('span.filename').width(width);
   });
 }
 

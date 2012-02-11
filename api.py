@@ -1,5 +1,5 @@
+import os, shutil, subprocess, time, urlparse, json, datetime
 import logging as log
-import os, shutil, subprocess, time, urlparse, json
 import db
 
 DEFAULT_THREAD_SIZE=5
@@ -11,6 +11,10 @@ STATE_DOWNLOADING=2
 STATE_PAUSED=3
 STATE_COMPLETED=4
 STATE_ERROR=5
+
+BUFFER_SIZE=5120
+
+TASK_QUEUE_SIZE=10
 
 class APIError(Exception):
     ERROR_REQUEST_DATA_INVALID = 11
@@ -71,6 +75,15 @@ class API(object):
             import traceback; traceback.print_exc()
             return dict(success=False, errno=0, errmsg="unkown error, please check out the log")
 
+    def download_more(self):
+      tasks = db.select_tasks(state=STATE_DOWNLOADING)
+      if len(tasks) < TASK_QUEUE_SIZE:
+        tasks = db.select_tasks(state=STATE_WAITING)
+        for task in tasks:
+          print 'start to download %s' % task['id']
+          log.debug('start to download %s' % task['id'])
+          self.create(None, task['id'])
+
     def create(self, options, tid=0):
         tid = int(tid)
         if not options:
@@ -85,7 +98,7 @@ class API(object):
                 maxspeed = task["maxspeed"]
                 headers = task["headers"]
                 subdir = task["subdir"]
-                if state != STATE_PAUSED and state != STATE_ERROR:
+                if state not in (STATE_WAITING, STATE_PAUSED, STATE_ERROR):
                     return
                 db.update_tasks(tid, state=STATE_DOWNLOADING)
             else:
@@ -94,7 +107,7 @@ class API(object):
             url = options["url"]
             output = options["output"] if options.has_key("output") and options["output"] else \
                 os.path.basename(urlparse.urlparse(url)[2])
-            if not options.has_key("immediately") or options["immediately"]: state = STATE_DOWNLOADING
+            if not options.has_key("immediately") or options["immediately"]: state = STATE_WAITING
             else: state = STATE_PAUSED
             thsize = options["thsize"] if options.has_key("thsize") else DEFAULT_THREAD_SIZE
             maxspeed = options["maxspeed"] if options.has_key("maxspeed") else 0
@@ -103,8 +116,9 @@ class API(object):
 
             tid = db.insert_task(url=url, output=output, state=state, thsize=thsize, maxspeed=maxspeed, headers=headers, subdir=subdir)
 
-            if state == STATE_PAUSED:
-                return
+            if state == STATE_WAITING:
+                self.download_more()
+            return
 
         #create axel task
         pid = os.fork()
@@ -123,9 +137,9 @@ class API(object):
 
             args = ["../axel", "-a", "-n", str(thsize), "-s", str(maxspeed), "-o", output]
             for header in headers.splitlines():
-                args.append("-H", header)
+                args.append("-H")
+                args.append(header)
             args.append(url)
-            log.debug(' '.join(args))
             axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
 
             last_update_time = 0
@@ -135,7 +149,7 @@ class API(object):
                     if not line:
                       break
                     line = line.strip()
-                    log.debug(line)
+#                    log.debug(line)
                 except:
                     returncode = axel_process.poll()
                     if returncode is not None:
@@ -171,7 +185,7 @@ class API(object):
                                 os.system("mkdir -p %s" % os.path.join(DOWNLOADS, subdir))
                                 os.rename(output_file, os.path.join(DOWNLOADS, subdir, output))
                                 break
-                            db.update_tasks(tid, speed=speed, done=done)
+                            db.update_tasks(tid, speed=speed, done=done, total=total)
                             continue
                         except Exception, e:
                             import traceback
@@ -181,6 +195,7 @@ class API(object):
                                 axel_process.terminate()
                             except:
                                 pass
+                            self.download_more()
                             return
                     else:
                         #paused
@@ -193,6 +208,7 @@ class API(object):
                             os.remove(output_file + ".st")
                         except:
                             pass
+                        self.download_more()
                         return
                 else:
                     #deleted
@@ -205,14 +221,29 @@ class API(object):
                         os.remove(output_file + ".st")
                     except:
                         pass
+                    self.download_more()
                     return
             returncode = axel_process.poll()
             if returncode is not None:
                 # axel completed
                 if returncode:
                     db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
+            self.download_more()
     def tasks(self, options):
-        return db.select_tasks(**options)
+        tasks = db.select_tasks(**options)
+        for task in tasks:
+          if task['state'] == STATE_DOWNLOADING and task['update_time'] and task['speed']:
+            nowt = datetime.datetime.now()
+            parts = task['update_time'].split('.')
+            dt = datetime.datetime.strptime(parts[0], "%Y-%m-%d %H:%M:%S")
+            update_time = dt.replace(microsecond=int(parts[1]))
+            interval = nowt - update_time
+            interval_seconds = interval.seconds + interval.microseconds*1.0/1000/1000
+            print interval_seconds * task['speed'], interval_seconds
+            if interval_seconds > 1 and interval_seconds * task['speed'] > BUFFER_SIZE:
+              speed = BUFFER_SIZE * 1.0 / interval_seconds
+              task['speed'] = 0 if speed < 1024 else speed
+        return tasks
 
     def pause(self, ids):
         db.update_tasks(ids, **{'state': STATE_PAUSED})

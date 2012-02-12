@@ -104,21 +104,21 @@ function init() {
   });
   $('#toolbar button.pause').click(function(){
     var ids = [];
-    $('#list input[type="checkbox"]:checked').each(function(i){
+    $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
     pause(ids);
   });
   $('#toolbar button.remove').click(function(){
     var ids = [];
-    $('#list input[type="checkbox"]:checked').each(function(i){
+    $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
     remove(ids);
   });
   $('#toolbar button.resume').click(function(){
     var ids = [];
-    $('#list input[type="checkbox"]:checked').each(function(i){
+    $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
     resume(ids);

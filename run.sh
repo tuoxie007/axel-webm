@@ -1,5 +1,5 @@
 #!/bin/bash
 
 killall python
-killall axel
+killall `pwd`/axel
 ./webm.py

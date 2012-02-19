@@ -20,7 +20,7 @@ class Router(object):
                 raise web.badrequest()
             
             try:
-                return API().serve(json_data)
+                return json.dumps(API().serve(json_data))
             except Exception, e:
                 traceback.print_exc()
                 raise web.internalerror(e.message)
@@ -29,25 +29,10 @@ class Router(object):
     
     def GET(self, uri):
         dirs = uri.split('/')
-        if dirs[0] == '':
-            filename = 'index.html'
-        elif dirs[0] in ['js', 'css', 'img', 'favicon.ico']:
+        if dirs[0] in ['', 'js', 'css', 'img', 'favicon.ico']:
             filename = uri
-        else:
-            raise web.notfound()
-        
-        try:
-            with open(filename) as staticfile:
-                filecontent = staticfile.read()
-                files[filename] = filecontent
-                return filecontent
-        except IOError, e:
-            if e.errno == 2:
-                raise web.notfound()
-        return
-        if files.has_key(filename):
-            return files[filename]
-        else:
+            if dirs[0] == '':
+                filename = 'index.html'
             try:
                 with open(filename) as staticfile:
                     filecontent = staticfile.read()
@@ -56,6 +41,19 @@ class Router(object):
             except IOError, e:
                 if e.errno == 2:
                     raise web.notfound()
+            if files.has_key(filename):
+                return files[filename]
+            else:
+                try:
+                    with open(filename) as staticfile:
+                        filecontent = staticfile.read()
+                        files[filename] = filecontent
+                        return filecontent
+                except IOError, e:
+                    if e.errno == 2:
+                        raise web.notfound()
+        else:
+            raise web.notfound()
 
 urls = (
     "/(.*)", Router
@@ -63,12 +61,13 @@ urls = (
 
 app = web.application(urls, globals())
 
-log.basicConfig(level=log.DEBUG, filename='/tmp/log2')
+log.basicConfig(level=log.DEBUG, filename='webm.log')
+#log.basicConfig(level=log.DEBUG)
 if __name__ == "__main__":
     try:
       db.select_tasks(id=1)
     except:
       db.reset_database()
-    API().download_more()
+    API().download_last()
     app.run()
     

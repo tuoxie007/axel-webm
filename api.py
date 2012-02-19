@@ -49,7 +49,7 @@ class API(object):
             elif action == 'resume':
                 ids = data["ids"]
                 for tid in ids:
-                    ret = self.create(None, tid)
+                    ret = self.resume(tid)
             elif action == 'sort':
                 ids = data["ids"]
                 ret = self.sort(ids)
@@ -64,7 +64,7 @@ class API(object):
             
             if ret is None:
                 return dict(success=True)
-            return json.dumps(dict(success=True, result=ret))
+            return dict(success=True, result=ret)
         except KeyError:
             import traceback; traceback.print_exc()
             raise APIError(APIError.ERROR_REQUEST_DATA_INVALID)
@@ -75,55 +75,59 @@ class API(object):
             import traceback; traceback.print_exc()
             return dict(success=False, errno=0, errmsg="unkown error, please check out the log")
 
+    def download_last(self):
+      tasks = db.select_tasks(state=STATE_DOWNLOADING)
+      for task in tasks:
+        log.debug('start to download %s' % task['id'])
+        self._start(task['id'])
+      self.download_more()
+
     def download_more(self):
       tasks = db.select_tasks(state=STATE_DOWNLOADING)
       if len(tasks) < TASK_QUEUE_SIZE:
         tasks = db.select_tasks(state=STATE_WAITING)
         for task in tasks:
-          print 'start to download %s' % task['id']
           log.debug('start to download %s' % task['id'])
-          self.create(None, task['id'])
+          self._start(task['id'])
 
-    def create(self, options, tid=0):
-        tid = int(tid)
-        if not options:
-            tasks = db.select_tasks(id=tid)
-            if tasks:
-                task = tasks[0]
-                url = task["url"]
-                output = task["output"]
-                state = task["state"]
-                thsize = task["thsize"]
-                maxspeed = task["maxspeed"]
-                headers = task["headers"]
-                subdir = task["subdir"]
-                if state not in (STATE_WAITING, STATE_PAUSED, STATE_ERROR):
-                    return
-                db.update_tasks(tid, state=STATE_WAITING)
-                self.download_more()
+    def create(self, options):
+        # just create a new task and then load_more()
+        url = options["url"]
+        output = options["output"] if options.has_key("output") and options["output"] else \
+            os.path.basename(urlparse.urlparse(url)[2])
+        if not options.has_key("immediately") or options["immediately"]: state = STATE_WAITING
+        else: state = STATE_PAUSED
+        thsize = options["thsize"] if options.has_key("thsize") else DEFAULT_THREAD_SIZE
+        maxspeed = options["maxspeed"] if options.has_key("maxspeed") else 0
+        headers = options["headers"] if options.has_key("headers") else ""
+        subdir = options["subdir"] if options.has_key("subdir") else ""
+
+        tid = db.insert_task(url=url, output=output, state=state, thsize=thsize, maxspeed=maxspeed, headers=headers, subdir=subdir)
+
+        if state == STATE_WAITING:
+            self.download_more()
+
+    def _start(self, tid):
+        # start a task existed
+        tasks = db.select_tasks(id=tid)
+        if not tasks:
             return
-        else:
-            url = options["url"]
-            output = options["output"] if options.has_key("output") and options["output"] else \
-                os.path.basename(urlparse.urlparse(url)[2])
-            if not options.has_key("immediately") or options["immediately"]: state = STATE_WAITING
-            else: state = STATE_PAUSED
-            thsize = options["thsize"] if options.has_key("thsize") else DEFAULT_THREAD_SIZE
-            maxspeed = options["maxspeed"] if options.has_key("maxspeed") else 0
-            headers = options["headers"] if options.has_key("headers") else ""
-            subdir = options["subdir"] if options.has_key("subdir") else ""
 
-            tid = db.insert_task(url=url, output=output, state=state, thsize=thsize, maxspeed=maxspeed, headers=headers, subdir=subdir)
-
-            if state == STATE_WAITING:
-                self.download_more()
-            return
+        db.update_tasks(tid, state=STATE_DOWNLOADING)
 
         #create axel task
-        pid = os.fork()
-        if pid: # old process
+        if os.fork(): # old process
             return # as 200 OK
         else: # sub process
+            # get the options
+            task = tasks[0]
+            url = task["url"]
+            output = task["output"]
+            thsize = task["thsize"]
+            maxspeed = task["maxspeed"]
+            headers = task["headers"]
+            subdir = task["subdir"]
+
             force_download = True
 
             output_file = os.path.join(INCOMMING, output)
@@ -138,6 +142,7 @@ class API(object):
             for header in headers.splitlines():
                 args.append("-H")
                 args.append(header)
+            args.append(url)
             args.append("-o")
             args.append(output)
             os.system("mkdir -p %s" % os.path.join(INCOMMING, subdir))
@@ -150,7 +155,6 @@ class API(object):
                     if not line:
                       break
                     line = line.strip()
-#                    log.debug(line)
                 except:
                     returncode = axel_process.poll()
                     if returncode is not None:
@@ -166,11 +170,6 @@ class API(object):
                 elif line.startswith("HTTP/1."):
                     db.update_tasks(tid, state=STATE_ERROR, errmsg=line)
                     break
-                elif line.startswith("Downloaded"):
-                    db.update_tasks(tid, state=STATE_COMPLETED)
-                    os.system("mkdir -p %s" % os.path.join(DOWNLOADS, subdir))
-                    os.rename(output_file, os.path.join(DOWNLOADS, subdir, output))
-                    break
                 else:
                     continue
                 last_update_time = this_update_time
@@ -182,11 +181,11 @@ class API(object):
                         try:
                             if done == total:
                                 #completed
-                                db.update_tasks(tid, state=STATE_COMPLETED)
+                                db.update_tasks(tid, state=STATE_COMPLETED, left=0)
                                 os.system("mkdir -p %s" % os.path.join(DOWNLOADS, subdir))
                                 os.rename(output_file, os.path.join(DOWNLOADS, subdir, output))
                                 break
-                            db.update_tasks(tid, speed=speed, done=done, total=total)
+                            db.update_tasks(tid, speed=speed, done=done, total=total, left=left)
                             continue
                         except Exception, e:
                             import traceback
@@ -196,21 +195,9 @@ class API(object):
                                 axel_process.terminate()
                             except:
                                 pass
-                            self.download_more()
-                            return
                     else:
                         #paused
                         axel_process.terminate()
-                        try:
-                            os.remove(output_file)
-                        except:
-                            pass
-                        try:
-                            os.remove(output_file + ".st")
-                        except:
-                            pass
-                        self.download_more()
-                        return
                 else:
                     #deleted
                     axel_process.terminate()
@@ -222,14 +209,32 @@ class API(object):
                         os.remove(output_file + ".st")
                     except:
                         pass
-                    self.download_more()
-                    return
             returncode = axel_process.poll()
             if returncode is not None:
                 # axel completed
                 if returncode:
                     db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
             self.download_more()
+
+    def resume(self, tid):
+        # set state to waiting and load_more()
+        tid = int(tid)
+        tasks = db.select_tasks(id=tid)
+        if tasks:
+            task = tasks[0]
+            url = task["url"]
+            output = task["output"]
+            state = task["state"]
+            thsize = task["thsize"]
+            maxspeed = task["maxspeed"]
+            headers = task["headers"]
+            subdir = task["subdir"]
+            if state not in (STATE_WAITING, STATE_PAUSED, STATE_ERROR):
+                return
+            if state != STATE_WAITING:
+                db.update_tasks(tid, state=STATE_WAITING)
+            self.download_more()
+
     def tasks(self, options):
         tasks = db.select_tasks(**options)
         for task in tasks:
@@ -240,8 +245,7 @@ class API(object):
             update_time = dt.replace(microsecond=int(parts[1]))
             interval = nowt - update_time
             interval_seconds = interval.seconds + interval.microseconds*1.0/1000/1000
-            print interval_seconds * task['speed'], interval_seconds
-            if interval_seconds > 1 and interval_seconds * task['speed'] > BUFFER_SIZE:
+            if interval_seconds > 2 and interval_seconds * task['speed'] > BUFFER_SIZE:
               speed = BUFFER_SIZE * 1.0 / interval_seconds
               task['speed'] = 0 if speed < 1024 else speed
         return tasks

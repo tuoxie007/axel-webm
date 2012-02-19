@@ -33,13 +33,13 @@ Number.prototype.human=function() {
 }
 Number.prototype.time=function() {
     if (this < 60)
-      return this + ' S';
+      return parseInt(this) + ' S';
     else if (this < 3600)
-      return parseInt(this/60) + ' M';
-    else if (this < 3600)
-      return parseInt(this/3600) + ' H';
+      return parseInt(this/60*10)/10 + ' M';
+    else if (this < 3600*24)
+      return parseInt(this/3600*10)/10 + ' H';
     else
-      return parseInt(this/3600/24) + ' D';
+      return parseInt(this/3600/24*10)/10 + ' D';
 }
 
 
@@ -64,7 +64,7 @@ function api(action, data, callback) {
       callback(ret);
     },
     error:function(ret){
-      console.log(ret);
+      console.error(ret);
     }
   });
 }
@@ -97,7 +97,9 @@ function init() {
         output = parts[1];
       }
       var options = {options:{url:url, headers:headers, output:output, subdir:subdir, immediately:immediately}};
-      api('create', options);
+      api('create', options, function() {
+        setTimeout(refresh, 1000);
+      });
     }
     close_create_dialog();
     refresh();
@@ -105,7 +107,8 @@ function init() {
   $('#toolbar button.pause').click(function(){
     var ids = [];
     $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
-      ids.push($(this).val());
+      if ($(this).parent().parent().hasClass('D'))
+        ids.push($(this).val());
     });
     pause(ids);
   });
@@ -122,6 +125,13 @@ function init() {
       ids.push($(this).val());
     });
     resume(ids);
+  });
+  $('#toolbar button.download').click(function(){
+    var ids = [];
+    $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
+      ids.push($(this).val());
+    });
+    download(ids);
   });
   $('#create button.cancel').click(close_create_dialog);
   $('#list td.filename').live('click', function(){
@@ -198,7 +208,7 @@ function init() {
   });
 
   refresh();
-  setInterval(refresh, 5000);
+//  setInterval(refresh, 5000);
 }
 
 function refresh() {
@@ -210,23 +220,23 @@ function refresh() {
       var task = tasks[i];
       var errmsg_title = states[task.state] == 'E' ? 'title="%s"'.fs(task.errmsg) : '';
       if (states[task.state] == 'C')
-          var tr = '<tr %s class="%s C completed %s>'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='C' && pdata.current!='A' ? 'hidden' : '');
+          var tr = '<tr id="task-%s" %s class="%s C completed %s">'.fs(task.id, errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='C' && pdata.current!='A' ? 'hidden' : '');
       else if (states[task.state] == 'D')
-          var tr = '<tr %s class="%s D downloading %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='D' && pdata.current!='A' ? 'hidden' : '');
+          var tr = '<tr id="task-%s" %s class="%s D downloading %s">'.fs(task.id, errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='D' && pdata.current!='A' ? 'hidden' : '');
       else if (states[task.state] == 'P')
-          var tr = '<tr %s class="%s P pause %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='P' && pdata.current!='A' ? 'hidden' : '');
+          var tr = '<tr id="task-%s" %s class="%s P pause %s">'.fs(task.id, errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='P' && pdata.current!='A' ? 'hidden' : '');
       else if (states[task.state] == 'W')
-          var tr = '<tr %s class="%s W waitting %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='W' && pdata.current!='A' ? 'hidden' : '');
+          var tr = '<tr id="task-%s" %s class="%s W waitting %s">'.fs(task.id, errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='W' && pdata.current!='A' ? 'hidden' : '');
       else
-          var tr = '<tr %s class="%s E error %s">'.fs(errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='E' && pdata.current!='A' ? 'hidden' : '');
+          var tr = '<tr id="task-%s" %s class="%s E error %s">'.fs(task.id, errmsg_title, i % 2 ? 'odd' : 'even', pdata.current!='E' && pdata.current!='A' ? 'hidden' : '');
       if($('#list input[value="%s"]:checked'.fs(task.id)).length) {
-        tr += '<td class="center"><input type="checkbox" value="%s" checked></td>'.fs(task.id);
+        tr += '<td class="center select"><input type="checkbox" value="%s" checked></td>'.fs(task.id);
       } else {
         tr += '<td class="center select"><input type="checkbox" value="%s"></td>'.fs(task.id);
       }
-      tr += '<td class="center">%s</td>'.fs(task.id);
+      //tr += '<td class="center">%s</td>'.fs(task.id);
       tr += '<td class="center state %s">%s</td>'.fs(states[task.state], states[task.state]);
-      tr += '<td class="filename">%s</td>'.fs(task.output);
+      tr += '<td class="filename">%s%s</td>'.fs(task.subdir ? task.subdir + '/' : task.subdir, task.output);
       var total = task.total ? task.total.human() : '';
       if (states[task.state] == 'C')
           var done = total;
@@ -236,16 +246,14 @@ function refresh() {
         tr += '<td class=""></td>';
       else
         tr += '<td class="done"><div percent="%s" class="progress"><span class="filename">%s / %s</span></div></td></td>'.fs(states[task.state] == 'C' ? 1 : task.done/task.total, done, total);
-      tr += '<td class="center">%s</td>'.fs(task.subdir);
-      //tr += '<td>%s</td>'.fs(task.url);
-      if (states[task.state] == 'C')
+      if (states[task.state] != 'D')
           speed = '';
       else if (task.speed == 0)
           speed = 0;
       else
-          speed = task.speed ? task.speed.human() : '';
+          speed = task.speed ? task.speed.human() + '/s' : '';
       tr += '<td class="center">%s</td>'.fs(speed);
-      if (states[task.state] == 'C')
+      if (states[task.state] != 'D')
           left = '';
       else
           left = task.left !== null ? task.left.time() : '';
@@ -255,7 +263,7 @@ function refresh() {
       if ($('#list tr#url-%s'.fs(task.id)).length && $('#list tr#url-%s'.fs(task.id)).css('display') != 'none')
         tr += '<tr style="display:table-row;" id="url-' + task.id + '" class="url"><td colspan="3"></td><td colspan="6">' + task.url + '</td></tr>';
       else
-        tr += '<tr id="url-' + task.id + '" class="url"><td colspan="3"></td><td colspan="5">' + task.url + '</td></tr>';
+        tr += '<tr id="url-' + task.id + '" class="url"><td colspan="2"></td><td colspan="5">' + task.url + '</td></tr>';
       trs += tr;
     });
     $('#wrap table tbody').html(trs);
@@ -264,7 +272,7 @@ function refresh() {
 }
 
 function reset_progress_length(){
-  $('#list .progress').width(0).each(function(i){
+  $('#list .progress').each(function(i){
     var percent = $(this).attr('percent');
     var width = $(this).parent().width();
     $(this).width(width * percent);
@@ -298,15 +306,33 @@ function close_create_dialog() {
 }
 
 function pause(ids) {
-  api('pause', {ids:ids}, refresh);
+  api('pause', {ids:ids}, function() {
+    $('#list input[type="checkbox"]:checked').removeAttr('checked');
+    refresh();
+  });
 }
 
 function remove(ids) {
-  api('remove', {ids:ids}, refresh);
+  api('remove', {ids:ids}, function() {
+    $('#list input[type="checkbox"]:checked').removeAttr('checked');
+    refresh();
+  });
 }
 
 function resume(ids) {
-  api('resume', {ids:ids}, refresh);
+  api('resume', {ids:ids}, function() {
+    $('#list input[type="checkbox"]:checked').removeAttr('checked');
+    refresh();
+  });
+}
+
+function download(ids) {
+  for (var i in ids) {
+    var id = ids[i];
+    var filename = $('#task-%s td.filename'.fs(id)).text();
+    var url = '/download/%s'.fs(filename);
+    document.location.href = url;
+  }
 }
 
 function settop() {

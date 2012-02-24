@@ -1,0 +1,84 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" href="css/main.css">
+  <script src="js/jquery-1.7.1.min.js"></script>
+  <script src="js/main.js"></script>
+
+  <title>Axel Web Manager</title>
+</head>
+
+<body>
+  <div id="wrap">
+    <div id="toolbar">
+      <button class="create">Add</button>
+      <button class="pause">Pause</button>
+      <button class="remove">Remove</button>
+      <button class="resume">Start</button>
+      <button class="download">Download</button>
+      <div id="msg">
+      </div>
+      <div id="states">
+        <span class="A current">All States</span>
+        <span class="D">Downlaoding</span>
+        <span class="C">Completed</span>
+        <span class="P">Paused</span>
+        <span class="W">Waitting</span>
+        <span class="E">Error</span>
+        <div class="clear">
+        </div>
+      </div>
+      <div class="clear">
+      </div>
+    </div>
+    <table id="list" width="100%">
+      <thead>
+        <tr>
+          <th width="50"  class="select">Select</th>
+          <!--<th width="40"  class="id">ID</th>-->
+          <th width="50"  class="state">State</th>
+          <th             class="filename">Filename</th>
+          <th width="120" class="done">Done</th>
+          <th width="50"  class="speed">Speed</th>
+          <th width="50"  class="eta">ETA</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="create">
+    <table>
+      <tr>
+        <th>URL</th>
+        <td><textarea name="url" cols="70" rows="10" style="width:600px;"></textarea></td>
+      </tr>
+      <tr>
+        <th>Headers</th>
+        <td><textarea name="headers" cols="70" rows="5" style="width:600px;"></textarea></td>
+      </tr>
+      <tr>
+        <th>Filename</th>
+        <td><input type="text" name="filename" size="70" style="width:600px;"></td>
+      </tr>
+      <tr>
+        <th>Subdir</th>
+        <td><input type="text" name="subdir" size="70" style="width:600px;"></td>
+      <tr>
+        <th>Download Now</th>
+        <td><input name="immediately" type="checkbox" checked></td>
+      </tr>
+    </table>
+    <div class="actions">
+      <button class="cancel">Cancel</button>
+      <button class="create">Create</button>
+    </div>
+  </div>
+  <div id="background">
+  </div>
+</body>
+</html>

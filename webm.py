@@ -69,5 +69,9 @@ if __name__ == "__main__":
     except:
       db.reset_database()
     API().download_last()
-    app.run()
+    try:
+      app.run()
+    except:
+      print "timeout"
+      pass
     

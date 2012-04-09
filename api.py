@@ -1,20 +1,16 @@
-import os, shutil, subprocess, time, urlparse, json, datetime
+import os, shutil, subprocess, time, urlparse, json, datetime, json, sys
 import logging as log
-import db
+import db, config
 
-DEFAULT_THREAD_SIZE=5
-INCOMMING="/data/Downloads/incomming"
-DOWNLOADS="/data/Downloads/downloads"
+config_file = open("conf", "rb")
+conf = config.Config(json.load(config_file))
+config_file.close()
 
 STATE_WAITING=1
 STATE_DOWNLOADING=2
 STATE_PAUSED=3
 STATE_COMPLETED=4
 STATE_ERROR=5
-
-BUFFER_SIZE=5120
-
-TASK_QUEUE_SIZE=10
 
 class APIError(Exception):
     ERROR_REQUEST_DATA_INVALID = 11
@@ -50,6 +46,8 @@ class API(object):
                 ids = data["ids"]
                 for tid in ids:
                     ret = self.resume(tid)
+                else:
+                    return dict(success=True, result="")
             elif action == 'sort':
                 ids = data["ids"]
                 ret = self.sort(ids)
@@ -84,7 +82,7 @@ class API(object):
 
     def download_more(self):
       tasks = db.select_tasks(state=STATE_DOWNLOADING)
-      if len(tasks) < TASK_QUEUE_SIZE:
+      if len(tasks) < conf.task_queue_size:
         tasks = db.select_tasks(state=STATE_WAITING)
         for task in tasks:
           log.debug('start to download %s' % task['id'])
@@ -97,7 +95,7 @@ class API(object):
             os.path.basename(urlparse.urlparse(url)[2])
         if not options.has_key("immediately") or options["immediately"]: state = STATE_WAITING
         else: state = STATE_PAUSED
-        thsize = options["thsize"] if options.has_key("thsize") else DEFAULT_THREAD_SIZE
+        thsize = options["thsize"] if options.has_key("thsize") else conf.default_thread_size
         maxspeed = options["maxspeed"] if options.has_key("maxspeed") else 0
         headers = options["headers"] if options.has_key("headers") else ""
         subdir = options["subdir"] if options.has_key("subdir") else ""
@@ -130,7 +128,7 @@ class API(object):
 
             force_download = True
 
-            output_file = os.path.join(INCOMMING, output)
+            output_file = os.path.join(conf.incomming, output)
             if os.path.exists(output_file) and not os.path.exists(output_file + '.st'):
               if force_download:
                 os.remove(output_file)
@@ -145,8 +143,8 @@ class API(object):
             args.append(url)
             args.append("-o")
             args.append(output)
-            os.system("mkdir -p %s" % os.path.join(INCOMMING, subdir))
-            axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=INCOMMING)
+            os.system("mkdir -p %s" % os.path.join(conf.incomming, subdir))
+            axel_process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, cwd=conf.incomming)
 
             last_update_time = 0
             while 1:
@@ -182,8 +180,8 @@ class API(object):
                             if done == total:
                                 #completed
                                 db.update_tasks(tid, state=STATE_COMPLETED, left=0)
-                                os.system("mkdir -p %s" % os.path.join(DOWNLOADS, subdir))
-                                os.rename(output_file, os.path.join(DOWNLOADS, subdir, output))
+                                os.system("mkdir -p %s" % os.path.join(conf.downloads, subdir))
+                                os.rename(output_file, os.path.join(conf.downloads, subdir, output))
                                 break
                             db.update_tasks(tid, speed=speed, done=done, total=total, left=left)
                             continue
@@ -215,6 +213,7 @@ class API(object):
                 if returncode:
                     db.update_tasks(tid, state=STATE_ERROR, errmsg="Error, axel exit with code: %s" % returncode)
             self.download_more()
+            sys.exit()
 
     def resume(self, tid):
         # set state to waiting and load_more()
@@ -245,8 +244,8 @@ class API(object):
             update_time = dt.replace(microsecond=int(parts[1]))
             interval = nowt - update_time
             interval_seconds = interval.seconds + interval.microseconds*1.0/1000/1000
-            if interval_seconds > 2 and interval_seconds * task['speed'] > BUFFER_SIZE:
-              speed = BUFFER_SIZE * 1.0 / interval_seconds
+            if interval_seconds > 2 and interval_seconds * task['speed'] > conf.buffer_size:
+              speed = conf.buffer_size * 1.0 / interval_seconds
               task['speed'] = 0 if speed < 1024 else speed
         return tasks
 
@@ -263,26 +262,22 @@ class API(object):
 
     def maxspeed(self, tid):
         return 0
-        with open('conf', 'rb') as configfile:
-            content = configfile.read()
-            conf = json.loads(content)
-            if not conf.has_key('total_maxspeed'):
-                return 0
-            total_max = conf['total_maxspeed']
-            if not total_max:
-                return 0
-            tasks = db.select_tasks(state="!=5")
-            total_speed = 0
-            for task in tasks:
-                if task['id'] == tid:
-                    continue
-                speed = task['speed']
-                if speed:
-                    total_speed += task['speed']
-            if total_speed > total_max:
-                return 1
-            else:
-                return total_max - total_speed
+        if not conf.total_maxspeed:
+            return 0
+        if not conf.total_max:
+            return 0
+        tasks = db.select_tasks(state="!=5")
+        total_speed = 0
+        for task in tasks:
+            if task['id'] == tid:
+                continue
+            speed = task['speed']
+            if speed:
+                total_speed += task['speed']
+        if total_speed > conf.total_max:
+            return 1
+        else:
+            return conf.total_max - total_speed
     
     def config(self, conf):
         try:

@@ -1,0 +1,8 @@
+{
+  "total_maxspeed":1000,
+  "incomming":"Downloads/incomming",
+  "downloads":"Downloads/downloads",
+  "default_thread_size":5,
+  "buffer_size":5120,
+  "task_queue_size":10
+}

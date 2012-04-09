@@ -65,6 +65,11 @@ function api(action, data, callback) {
     },
     error:function(ret){
       console.error(ret);
+      alert("出错了，请查看浏览器控制台，或者重启下axel-webm");
+    },
+    timeout:function(ret){
+      console.error("request timeout");
+      alert("请求超时了，请重启下axel-webm");
     }
   });
 }
@@ -84,6 +89,13 @@ function init() {
     var headers = $('#create textarea[name="headers"]').val();
     var output = $('#create input[name="filename"]').val();
     var subdir = $('#create input[name="subdir"]').val();
+    while (true) {
+        if (subdir.charAt(0) == "/")
+            subdir = subdir.substr(1);
+        else
+            break;
+    }
+    
     var immediately = $('#create input[name="immediately"]').attr('checked') == 'checked';
     urls = urls.split('\n');
     if (urls.length > 1)
@@ -110,28 +122,32 @@ function init() {
       if ($(this).parent().parent().hasClass('D'))
         ids.push($(this).val());
     });
-    pause(ids);
+    if (ids.length)
+      pause(ids);
   });
   $('#toolbar button.remove').click(function(){
     var ids = [];
     $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
-    remove(ids);
+    if (ids.length)
+      remove(ids);
   });
   $('#toolbar button.resume').click(function(){
     var ids = [];
     $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
-    resume(ids);
+    if (ids.length)
+      resume(ids);
   });
   $('#toolbar button.download').click(function(){
     var ids = [];
     $('#list tr:visible input[type="checkbox"]:checked').each(function(i){
       ids.push($(this).val());
     });
-    download(ids);
+    if (ids.length)
+      download(ids);
   });
   $('#create button.cancel').click(close_create_dialog);
   $('#list td.filename').live('click', function(){
@@ -208,7 +224,7 @@ function init() {
   });
 
   refresh();
-//  setInterval(refresh, 5000);
+  setInterval(refresh, 5000);
 }
 
 function refresh() {
@@ -261,9 +277,9 @@ function refresh() {
       tr += '</tr>';
 
       if ($('#list tr#url-%s'.fs(task.id)).length && $('#list tr#url-%s'.fs(task.id)).css('display') != 'none')
-        tr += '<tr style="display:table-row;" id="url-' + task.id + '" class="url"><td colspan="3"></td><td colspan="6">' + task.url + '</td></tr>';
+        tr += '<tr style="display:table-row;" id="url-' + task.id + '" class="url"><td colspan="2"></td><td colspan="6">' + task.url + '</td></tr>';
       else
-        tr += '<tr id="url-' + task.id + '" class="url"><td colspan="2"></td><td colspan="5">' + task.url + '</td></tr>';
+        tr += '<tr id="url-' + task.id + '" class="url"><td colspan="2"></td><td colspan="6">' + task.url + '</td></tr>';
       trs += tr;
     });
     $('#wrap table tbody').html(trs);
